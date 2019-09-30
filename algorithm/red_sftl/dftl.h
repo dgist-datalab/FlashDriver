@@ -12,7 +12,7 @@
 #include "../../interface/interface.h"
 #include "../../interface/queue.h"
 #include "../../include/container.h"
-#include "../../include/dftl_settings.h"
+#include "../../include/ftl_settings.h"
 #include "../../include/dl_sync.h"
 #include "../../include/types.h"
 #include "../../include/data_struct/redblack.h"

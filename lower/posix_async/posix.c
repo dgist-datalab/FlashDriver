@@ -37,7 +37,8 @@ lower_info my_posix={
 	.write=posix_push_data,
 	.read=posix_pull_data,
 #endif
-	.device_badblock_checker=posix_badblock_checker,
+	.device_badblock_checker=NULL,
+	//.device_badblock_checker=posix_badblock_checker,
 #if (ASYNC==1)
 	.trim_block=posix_make_trim,
 #elif (ASYNC==0)
@@ -63,7 +64,7 @@ void *l_main(void *__input){
 			continue;
 		}
 		//chang ppa, mapping right ppa from bad block or somthing
-		inf_req->key=bb_checker_fix_ppa(inf_req->key);
+		//inf_req->key=bb_checker_fix_ppa(inf_req->key);
 		switch(inf_req->type){
 			case FS_LOWER_W:
 				posix_push_data(inf_req->key, inf_req->size, inf_req->value, inf_req->isAsync, inf_req->upper_req);
@@ -195,14 +196,14 @@ void *posix_push_data(KEYT PPA, uint32_t size, value_set* value, bool async,algo
 		bench_lower_start(req->parents);
 	pthread_mutex_lock(&fd_lock);
 
-	if(((lsm_params*)req->params)->lsm_type < 6){
+	//if(((lsm_params*)req->params)->lsm_type < 6){
 	if(lseek64(_fd,((off64_t)my_posix.SOP)*PPA,SEEK_SET)==-1){
 		printf("lseek error in write\n");
 	}//
 	if(!write(_fd,value->value,size)){
 		printf("write none!\n");
 	}	
-	}
+	//}
 	pthread_mutex_unlock(&fd_lock);
 	if(req->parents)
 		bench_lower_end(req->parents);
@@ -222,7 +223,7 @@ void *posix_pull_data(KEYT PPA, uint32_t size, value_set* value, bool async,algo
 
 	pthread_mutex_lock(&fd_lock);
 
-	if(((lsm_params*)req->params)->lsm_type < 6){
+	//if(((lsm_params*)req->params)->lsm_type < 6){
 	if(lseek64(_fd,((off64_t)my_posix.SOP)*PPA,SEEK_SET)==-1){
 		printf("lseek error in read\n");
 	}
@@ -230,7 +231,7 @@ void *posix_pull_data(KEYT PPA, uint32_t size, value_set* value, bool async,algo
 	if(!(res=read(_fd,value->value,size))){
 		printf("%d:read none!\n",res);
 	}
-	}
+	//}
 	pthread_mutex_unlock(&fd_lock);
 
 	if(req->parents)

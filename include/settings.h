@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-
+#include "ftl_settings.h"
 /*
 #define free(a) \
 	do{\
@@ -33,30 +33,49 @@
 #elif defined(SLC)
 
 #define GIGAUNIT 16L
-#define _OPAREA ((GIGAUNIT * G)*0.07)
+#define _OPAREA (GIGAUNIT*G*0.07)
 
+#if !BFTL
 #define TOTALSIZE ((GIGAUNIT*G)+_OPAREA)
+#endif
 //#define TOTALSIZE (GIGAUNIT * G)
 #define REALSIZE (512L*G)
 #define DEVSIZE (64L * G)
 #define PAGESIZE (4*K)
 
+#define _PPB (1<<7)
+#define BPS (1)
 
-#define _PPB (128)
+#define _PPS (_PPB * BPS)
+#define SUPERBLK_SIZE 4
 
-#define _PPS (1<<9)
-#define BPS (4)
+
+#if BFTL
+#define L_DEVICE ((GIGAUNIT * G))
+#define L_PAGES  (L_DEVICE / PAGESIZE)
+#define MASK ceil((_PPB*SUPERBLK_SIZE) * (1 - 0.07))
+
+#define _NOS ceil((L_PAGES / MASK)) * SUPERBLK_SIZE // Total physical blocks
+#define _NOP (_NOS * _PPB)
+#define TOTALSIZE (_NOP * PAGESIZE)
+#else
 
 //#define _PPS (1<<14)
 //#define BPS (64)
+#endif
 
 #endif
 
-//#define _NOP (TOTALSIZE/PAGESIZE)
-//#define _NOS (TOTALSIZE/(_PPS*PAGESIZE))
+
+
+
 #define BLOCKSIZE (_PPB*PAGESIZE)
+
+#if !BFTL
 #define _NOS ceil(TOTALSIZE/(_PPS*PAGESIZE))
 #define _NOP (_PPS*_NOS)
+#endif
+
 #define _NOB (BPS*_NOS)
 #define _RNOS (REALSIZE/(_PPS*PAGESIZE))//real number of segment
 
@@ -75,7 +94,7 @@
 #define PTR char*
 #define ASYNC 1
 #define QSIZE (1024)
-#define QDEPTH (1)
+#define QDEPTH (128)
 #define THREADSIZE (1)
 
 #define THPOOL

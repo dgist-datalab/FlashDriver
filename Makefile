@@ -1,9 +1,10 @@
 export CC=g++
 
 TARGET_INF=interface
-TARGET_LOWER=posix_memory
+TARGET_LOWER=posix_async
+#TARGET_ALGO=dftl
 #TARGET_LOWER=linux_aio
-TARGET_ALGO=dftl
+TARGET_ALGO=bloomftl
 
 
 
@@ -19,8 +20,8 @@ COMMONFLAGS=\
 			-Wno-write-strings\
 			-DLARGEFILE64_SOURCE\
 			-DSLC\
-			-O2\
-			-fsanitize=address\
+			-O0\
+#			-fsanitize=address\
 			-static-libasan
 #			-DWRITESYNC\
 
@@ -89,7 +90,7 @@ SRCS +=\
 	./bench/bench.c\
 	./include/utils/thpool.c\
 	./include/data_struct/redblack.c\
-	./include/data_struct/demand_hash.c\
+#	./include/data_struct/demand_hash.c\
 
 TARGETOBJ =\
 			$(patsubst %.c,%.o,$(SRCS))\
@@ -121,7 +122,7 @@ duma_sim: duma_driver
 debug_driver: ./interface/main.c libdriver_d.a
 	$(CC) $(CFLAGS) -DDEBUG -o $@ $^ $(LIBS)
 
-driver: ./interface/t_main.c libdriver.a
+driver: ./interface/main.c libdriver.a
 	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)
 
 range_driver: ./interface/range_test_main.c libdriver.a

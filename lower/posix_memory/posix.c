@@ -31,6 +31,8 @@
 #include "../../algorithm/ctoc_batch/dftl.h"
 #elif defined(hashftl)
 #include "../../algorithm/hashftl/hashftl.h"
+#elif defined(bloomftl)
+#include"../../algorithm/bloomftl/bloomftl.h"
 
 #else
 #include "../../algorithm/Lsmtree/lsmtree.h"
@@ -280,6 +282,7 @@ void *posix_push_data(KEYT PPA, uint32_t size, value_set* value, bool async,algo
 
 void *posix_pull_data(KEYT PPA, uint32_t size, value_set* value, bool async,algo_req *const req){
 	uint8_t test_type;
+	static int cnt = 0;
 	if(req->type_lower!=1 && req->type_lower!=0){
 		req->type_lower=0;
 	}
@@ -289,6 +292,8 @@ void *posix_pull_data(KEYT PPA, uint32_t size, value_set* value, bool async,algo
 	}
 
 	pthread_mutex_lock(&fd_lock);
+
+//	printf("low_ppa : %d cnt = %d\n",PPA,cnt++);
 
 	if(my_posix.SOP*PPA >= my_posix.TS){
 		printf("\nread error\n");

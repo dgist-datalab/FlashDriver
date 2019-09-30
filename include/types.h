@@ -24,6 +24,8 @@
 #define DATAW 6
 #define GCDR 7
 #define GCDW 8
+#define RBR 9
+#define RBW 10
 
 #define FS_MALLOC_W 1
 #define FS_MALLOC_R 2

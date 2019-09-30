@@ -1,12 +1,13 @@
-#ifndef __H_SETDFTL__
-#define __H_SETDFTL__
+#ifndef __H_SETFTL__
+#define __H_SETFTL__
 
 // clean cache flag
 #define C_CACHE 0
 
 // sftl & tpftl flag
-#define S_FTL 1 
+#define S_FTL 1
 #define TPFTL 0
+#define BFTL  1
 
 #define REAL_BENCH_SET 0
 // memcpy op gc flag
@@ -22,7 +23,7 @@
 #define W_BUFF_POLL 0
 
 // gc polling flag
-#define GC_POLL 0
+#define GC_POLL 1
 
 // eviction polling flag
 #define EVICT_POLL 0

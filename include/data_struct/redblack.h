@@ -60,7 +60,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include "../settings.h"
-#include "../dftl_settings.h"
+#include "../ftl_settings.h"
 /* typedef struct str_key{
 	uint8_t len;
 	//char key[30];

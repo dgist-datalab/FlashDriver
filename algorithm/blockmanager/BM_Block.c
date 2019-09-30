@@ -13,6 +13,8 @@ BM_T* BM_Init(int32_t nob, int32_t ppb, int h_count, int q_count)
 	PagePerBlock = ppb;
 	numBITMAPB = (PagePerBlock % numBits_ValidP > 0) + (PagePerBlock/numBits_ValidP);
 
+//	printf("numBITMAPB : %d\n",numBITMAPB);
+
 	BM_T* res = (BM_T*)malloc(sizeof(BM_T));
 	res->barray = (Block*)malloc(sizeof(Block) * numBlock);
 	if (h_count != 0)
@@ -36,6 +38,7 @@ int32_t BM_InitBlockArray(Block* blockArray)
 		blockArray[i].PBA = i;
 		blockArray[i].Invalid = 0;
 		blockArray[i].wr_off = 0;
+		blockArray[i].p_offset = 0;
 		blockArray[i].hn_ptr = NULL;
 		blockArray[i].type = 0;
 		blockArray[i].ValidP = (ValidP_T*)malloc(numBITMAPB);

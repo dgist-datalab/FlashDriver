@@ -191,7 +191,7 @@ uint32_t demand_create(lower_info *li, algorithm *algo){
     //num_max_cache = max_cache_entry / 50; // 2%
     
     //num_max_cache = 128;  //12.5% of Page_mapping
-    num_max_cache = ceil(4096*0.25); 
+    num_max_cache = ceil(4096*1); 
     //num_max_cache = ceil(1024 * 0.35);
     real_max_cache = num_max_cache;
 

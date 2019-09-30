@@ -23,6 +23,8 @@ extern struct algorithm __badblock;
 extern struct algorithm __demand;
 extern struct algorithm algo_pbase;
 extern struct algorithm __hashftl;
+extern struct algorithm __bloomftl;
+
 
 #ifdef Lsmtree
 extern struct algorithm algo_lsm;
@@ -366,6 +368,8 @@ void inf_init(){
 	mp.algo=&__badblock;
 #elif defined(hashftl)
 	mp.algo=&__hashftl;
+#elif defined(bloomftl)
+	mp.algo=&__bloomftl;
 #endif
 
 	mp.li->create(mp.li);

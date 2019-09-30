@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../settings.h"
-#include "../dftl_settings.h"
+#include "../ftl_settings.h"
 
 #define HASH_FAIL   -1
 #define HASH_UPDATE  0

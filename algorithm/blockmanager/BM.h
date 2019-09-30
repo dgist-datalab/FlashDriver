@@ -26,6 +26,7 @@ typedef struct { // 13 + PPB/8 bytes
 	TYPE_T		type;
 	ValidP_T*	ValidP;			/* (Bitmap)index means Validity of offset pages. 1 means VALID, 0 means INVALID */
 	int32_t wr_off;
+	int32_t p_offset;
 } Block;
 
 typedef struct {
@@ -114,6 +115,7 @@ static inline void BM_InitializeBlock(BM_T* BM, PBA_T PBA) {
 	memset(BM->barray[PBA].ValidP, BM_INVALIDPAGE, numBITMAPB);
 	BM->barray[PBA].Invalid = 0;
 	BM->barray[PBA].wr_off = 0;
+	BM->barray[PBA].p_offset = 0;
 }
 
 /* Initalize all Block */
@@ -122,6 +124,7 @@ static inline void BM_InitializeAll(BM_T* BM) {
 		memset(BM->barray[i].ValidP, BM_INVALIDPAGE, numBITMAPB);
 		BM->barray[i].Invalid = 0;
 		BM->barray[i].wr_off = 0;
+		BM->barray[i].p_offset = 0;
 	}
 }
 

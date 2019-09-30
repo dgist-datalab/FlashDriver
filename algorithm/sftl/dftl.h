@@ -12,11 +12,11 @@
 #include "../../interface/interface.h"
 #include "../../interface/queue.h"
 #include "../../include/container.h"
-#include "../../include/dftl_settings.h"
+#include "../../include/ftl_settings.h"
 #include "../../include/dl_sync.h"
 #include "../../include/types.h"
 #include "../../include/data_struct/redblack.h"
-#include "../../include/data_struct/demand_hash.h"
+//#include "../../include/data_struct/demand_hash.h"
 #ifdef W_BUFF
 #include "../Lsmtree/skiplist.h"
 #endif
@@ -45,7 +45,6 @@
 #define BITMAP_SIZE (EPP / 8) // Bitmap_size for SFTL
 #define ENTRY_SIZE 8          // ppa pointer and linked list pointer
 #define SFTL_SETTING 0	      // Normal 0, RED_BLACK 1, HASH 2
-
 #endif
 
 
