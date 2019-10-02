@@ -23,7 +23,7 @@
 #define W_BUFF_POLL 0
 
 // gc polling flag
-#define GC_POLL 1
+#define GC_POLL 0
 
 // eviction polling flag
 #define EVICT_POLL 0

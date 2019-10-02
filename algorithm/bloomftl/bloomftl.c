@@ -24,48 +24,46 @@ G_manager *re_list;
 bool *lba_flag;
 bool *lba_bf;
 
-bool gc_flag;
 bool check_flag;
 int32_t check_cnt;
 
-int32_t write_cnt;
-int32_t read_cnt;
-int32_t gc_write;
-int32_t gc_read;
+uint32_t algo_write_cnt;
+uint32_t algo_read_cnt;
+uint32_t gc_write;
+uint32_t gc_read;
 
-int32_t page_load;
-int32_t page_unload;
+volatile int32_t data_gc_poll;
 
-int32_t block_erase_cnt;
-int32_t found_cnt;
-int32_t not_found_cnt;
-int32_t rb_read_cnt;
-int32_t rb_write_cnt;
+uint32_t block_erase_cnt;
+uint32_t found_cnt;
+uint32_t not_found_cnt;
+uint32_t rb_read_cnt;
+uint32_t rb_write_cnt;
 
-int32_t sub_lookup_read;
+uint32_t sub_lookup_read;
 
 uint32_t lnb;
 uint32_t mask;
 
 int32_t nob;
 int32_t ppb;
-uint32_t nop;
+int32_t nop;
 int32_t lnp;
 
-int32_t r_count;
+uint32_t r_count;
 
-
-
+bool rb_flag;
+bool gc_flag;
 
 #if !SUPERBLK_GC
 int32_t nos;
 int32_t pps;
 #endif
 #if REBLOOM
-int32_t r_check;
+uint32_t r_check;
 #endif
 
-int32_t g_cnt;
+uint32_t g_cnt;
 
 #if SUPERBLK_GC
 void bloom_create(void){
@@ -184,8 +182,13 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 	
 	gm = (G_manager *)malloc(sizeof(G_manager) * pps);	
 	valid_p = (G_manager *)malloc(sizeof(G_manager) * pps);
-	for(int i = 0 ; i < pps; i++){
-		
+
+#if REBLOOM
+	rb = (G_manager *)malloc(sizeof(G_manager) * pps);
+	re_list = (G_manager *)malloc(sizeof(G_manager) * SUPERBLK_SIZE);
+#endif
+
+	for(int i = 0 ; i < pps; i++){		
 		gm[i].t_table = (T_table *)malloc(sizeof(T_table));
 		memset(gm[i].t_table, -1, sizeof(T_table));
 		gm[i].value = NULL;
@@ -193,6 +196,8 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 		valid_p[i].t_table = NULL;
 		valid_p[i].value = NULL;
 	}
+
+
 	
 	/*
 	valid_p = (G_manager *)malloc(sizeof(G_manager) * pps);
@@ -296,9 +301,9 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 	double total_memory = 0.0; 
 	double max_memory = 0.0;
     printf("--------- Benchmark Result ---------\n\n");
-    printf("Total request  I/O count   : %d\n",write_cnt+read_cnt);
-    printf("Total write    I/O count   : %d\n",write_cnt);
-    printf("Total read     I/O count   : %d\n",read_cnt);
+    printf("Total request  I/O count   : %d\n",algo_write_cnt+algo_read_cnt);
+    printf("Total write    I/O count   : %d\n",algo_write_cnt);
+    printf("Total read     I/O count   : %d\n",algo_read_cnt);
 	printf("Total found count          : %d\n",found_cnt);
 	printf("Total Not found count      : %d\n",not_found_cnt);
 	printf("Total GC write I/O count   : %d\n",gc_write);
@@ -309,14 +314,14 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 	printf("Total RB read  I/O count   : %d\n",rb_read_cnt);
 #endif
 	printf("Total block erase count    : %d\n",block_erase_cnt);
-	if(read_cnt != 0){
-		printf("Total RAF Result       : %.2lf\n", (float) (found_cnt+not_found_cnt) / read_cnt);
+	if(algo_read_cnt != 0){
+		printf("Total RAF Result       : %.2lf\n", (float) (found_cnt+not_found_cnt) / algo_read_cnt);
 	}
-	if(write_cnt != 0){
+	if(algo_write_cnt != 0){
 #if REBLOOM	
-		printf("Total WAF Result       : %.2lf\n", (float) (write_cnt+gc_write+rb_write_cnt)/write_cnt);
+		printf("Total WAF Result       : %.2lf\n", (float) (algo_write_cnt+gc_write+rb_write_cnt)/algo_write_cnt);
 #else
-		printf("Total WAF Result       : %.2lf\n", (float) (write_cnt+gc_write) / write_cnt);
+		printf("Total WAF Result       : %.2lf\n", (float) (algo_write_cnt+gc_write) / algo_write_cnt);
 #endif
 	}
 
@@ -364,6 +369,8 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 		gm[i].value = NULL;
 		gm[i].size = 0;
 	}
+
+
 	free(gm);
 	free(valid_p);
 
@@ -389,7 +396,7 @@ uint32_t bloom_write(request* const req){
 	my_req = assign_pseudo_req(DATAW, NULL, req);
 	__bloomftl.li->write(ppa, PAGESIZE, req->value, ASYNC, my_req);
 
-	write_cnt++;
+	algo_write_cnt++;
 
 	return 1;
 
@@ -453,7 +460,7 @@ uint32_t bloom_read(request* const req){
 	
 	
 	
-	read_cnt++;
+	algo_read_cnt++;
 	if(lba_flag[lba] == 0)
 		return 0;	
 	//printf("read_cnt : %d\n",read_cnt++);
@@ -494,20 +501,19 @@ void *bloom_end_req(algo_req *input){
 			break;
 		case GCDR:
 			gc_read++;
-			page_load++;
+			data_gc_poll++;
 			break;
 		case GCDW:
 			gc_write++;
-			page_unload++;
 			inf_free_valueset(temp_set,FS_MALLOC_W);
 			break;
 		case RBR:
 			rb_read_cnt++;
-			page_load++;
+			data_gc_poll++;
 			break;
 		case RBW:
-			rb_write_cnt++;
-			page_unload++;
+			rb_write_cnt++;	
+			inf_free_valueset(temp_set,FS_MALLOC_W);
 			break;
 	}
 	free(params);

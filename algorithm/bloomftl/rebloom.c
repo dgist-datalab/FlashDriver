@@ -10,24 +10,26 @@ void rebloom_op(uint32_t superblk){
 
 	uint32_t p_idx;
 	uint32_t cur_idx;
-	uint32_t g_range, rb_valid_cnt;
-	uint32_t valid_cnt;
+	int32_t g_range, rb_valid_cnt;
+	int32_t valid_cnt;
 	
 	uint32_t free_space;
 	uint32_t erase_idx = 0;
 	int64_t ppa;
 
-	page_load = page_unload = 0;
 
+//	printf("rebloom!\n");
+//	exit(0);	
 	/* init a global data structure for reblooming */
 	//When reblooming is trigger, use a bucket for coalesced pages 
-	valid_p = (G_manager *)malloc(sizeof(G_manager) * pps);
+//	valid_p = (G_manager *)malloc(sizeof(G_manager) * pps);
+	
 	rb = (G_manager *)malloc(sizeof(G_manager) * pps);	
 	re_list = (G_manager *)malloc(sizeof(G_manager) * SUPERBLK_SIZE);
 
 	for(int i = 0 ; i < pps ; i++){
-		valid_p[i].t_table = NULL;
-		valid_p[i].value = NULL;
+		//valid_p[i].t_table = NULL;
+		//valid_p[i].value = NULL;
 		rb[i].t_table = (T_table *)malloc(sizeof(T_table) * MAX_RB);
 		rb[i].value   = (value_set *)malloc(sizeof(value_set) * MAX_RB);
 		rb[i].size = 0;
@@ -47,7 +49,19 @@ void rebloom_op(uint32_t superblk){
 	cur_idx  = b_table[superblk].c_block;
 	valid_cnt = invalid_block(bucket, cur_idx);
 
-	d_ram = (SRAM *)malloc(sizeof(SRAM) * valid_cnt);
+	if(superblk == 4318){
+		for(int i = 0 ; i < valid_cnt; i++){
+			printf("valid[%d].lba : %d\n",valid_p[i].t_table->lba);
+		}
+	}
+
+
+
+	d_ram = (SRAM *)malloc(sizeof(SRAM) * pps);
+	for(int i = 0 ; i < pps ; i++){
+		d_ram[i].oob_ram = -1;
+		d_ram[i].ptr_ram = NULL;
+	}
 
 
 	//Make reblooming list
@@ -74,7 +88,6 @@ void rebloom_op(uint32_t superblk){
 		}
 
 	}
-	
 	//Reset current block pointer
 	reset_cur_idx(superblk);
 	for(int i = 0; i < rb_valid_cnt; i++){
@@ -85,12 +98,10 @@ void rebloom_op(uint32_t superblk){
 		ppa = (block->PBA * ppb) + p_idx;
 		SRAM_unload(d_ram, ppa, i, RBW);
 		BM_ValidatePage(bm, ppa);	
-		block->p_offset++;
-		
+		block->p_offset++;	
 		b_table[superblk].full++;
 	}
 
-	//while(page_unload != 0){}
 
 
 	b_table[superblk].pre_lba = d_ram[rb_valid_cnt-1].oob_ram;
@@ -106,24 +117,33 @@ void rebloom_op(uint32_t superblk){
 	
 
 	for(int i = 0 ; i < pps ; i++){
-		free(gm[i].t_table);
+		memset(gm[i].t_table, -1, sizeof(T_table));
 		if(gm[i].value != NULL)
 			inf_free_valueset(gm[i].value, FS_MALLOC_R);
 		else{
 			free(gm[i].value);
 		}
+		gm[i].value = NULL;
+
+		valid_p[i].t_table = NULL;
+		valid_p[i].value = NULL;
+		
+		free(rb[i].t_table);
+		free(rb[i].value);
+			
 	}
 
+	for(int i = 0 ; i < SUPERBLK_SIZE; i++){
+		free(re_list[i].t_table);
+		free(re_list[i].value);
+	}
 
-	free(gm);
 	free(rb);
 	free(re_list);
-	free(d_ram);
-	gm = NULL;
 	rb = NULL;
 	re_list = NULL;
-	valid_p = NULL;
-	//printf("After BF count : %d\n",b_table[superblk].bf_num);
+
+	free(d_ram);
 
 	return ;
 }
@@ -134,7 +154,7 @@ uint32_t rebloom_gc(SRAM *sram, uint32_t *free_space, uint32_t *erase_idx, uint3
     uint32_t idx = full;
    // uint32_t max_invalid;
 	//uint32_t max_idx, check_idx;
-    uint32_t add_cnt;
+    int32_t add_cnt;
     uint32_t remove_idx = *erase_idx;
 
 	victim = bucket[remove_idx];
@@ -142,21 +162,23 @@ uint32_t rebloom_gc(SRAM *sram, uint32_t *free_space, uint32_t *erase_idx, uint3
     *free_space += victim->p_offset;
 
 	
+	__bloomftl.li->trim_block(victim->PBA * ppb, false);		
     BM_InitializeBlock(bm, victim->PBA);
-	__bloomftl.li->trim_block(victim->PBA * ppb, false);	
 	block_erase_cnt++;
 
     add_cnt = re_list[remove_idx].size;
     //Add valid pages into write list
     if(add_cnt != 0){
         for(int i = 0 ; i < add_cnt; i++){
-			sram[idx].ptr_ram = (PTR)malloc(PAGESIZE);
-			memcpy(sram[idx].ptr_ram, &re_list[remove_idx].value->value, PAGESIZE);
+			//sram[idx].ptr_ram = (PTR)malloc(PAGESIZE);	
+			//memcpy(sram[idx].ptr_ram, &re_list[remove_idx].value->value, PAGESIZE);
+			
 			sram[idx].oob_ram = re_list[remove_idx].t_table[i].lba;
+			sram[idx].ptr_ram = re_list[remove_idx].value[i].value;
 			idx++;
 			
-			free(&re_list[remove_idx].t_table[i]);
-			inf_free_valueset(&re_list[remove_idx].value[i], FS_MALLOC_R);
+			//free(&re_list[remove_idx].t_table[i]);
+			//inf_free_valueset(&re_list[remove_idx].value[i], FS_MALLOC_R);
 
 		}
     }
@@ -164,14 +186,18 @@ uint32_t rebloom_gc(SRAM *sram, uint32_t *free_space, uint32_t *erase_idx, uint3
     return add_cnt;
 }
 
-uint32_t set_rebloom_list(uint32_t arr_size){
+uint32_t set_rebloom_list(int32_t arr_size){
 	uint32_t pre_lba, next_lba;
 	uint32_t g_idx, rb_idx;
 	uint32_t max_group;
 	g_idx = 0;
+
+	rb[g_idx].t_table[0] = *(valid_p[0].t_table);
+	rb[g_idx].value[0] = *(valid_p[0].value);
 	
-	memcpy(&rb[g_idx].t_table[0], valid_p[0].t_table, sizeof(T_table));
-	memcpy(&rb[g_idx].value[0], valid_p[0].value, sizeof(value_set));
+	
+	//memcpy(&rb[g_idx].t_table[0], valid_p[0].t_table, sizeof(T_table));
+	//memcpy(&rb[g_idx].value[0], valid_p[0].value, sizeof(value_set));
 	
 //	inf_free_valueset(valid_p[0].value, FS_MALLOC_R);
 //	free(valid_p[0].t_table);
@@ -185,8 +211,11 @@ uint32_t set_rebloom_list(uint32_t arr_size){
 			g_idx++;
 		}
 		rb_idx = rb[g_idx].size;
-		memcpy(&rb[g_idx].t_table[rb_idx], valid_p[i].t_table, sizeof(T_table));
-		memcpy(&rb[g_idx].value[rb_idx], valid_p[i].value, sizeof(value_set));
+		rb[g_idx].t_table[rb_idx] = *(valid_p[i].t_table);
+		rb[g_idx].value[rb_idx]   = *(valid_p[i].value);
+
+//		memcpy(&rb[g_idx].t_table[rb_idx], valid_p[i].t_table, sizeof(T_table));
+//		memcpy(&rb[g_idx].value[rb_idx], valid_p[i].value, sizeof(value_set));
 
 //		free(valid_p[i].t_table);
 //		inf_free_valueset(valid_p[i].value, FS_MALLOC_R);
@@ -207,8 +236,7 @@ uint32_t set_rebloom_list(uint32_t arr_size){
 	
 }
 
-uint32_t check_rb_valid(SRAM *sram, uint32_t g_range){
-	Block *block;
+uint32_t check_rb_valid(SRAM *sram, int32_t g_range){
 	uint32_t idx = 0;
 	uint32_t b_idx, b_offset;
 	uint32_t pbn,p_idx;
@@ -218,12 +246,12 @@ uint32_t check_rb_valid(SRAM *sram, uint32_t g_range){
 		for(int j = 0 ; j < rb[i].size; j++){
 			if(rb[i].size > 1){
 				ppa   = rb[i].t_table[j].ppa;
-				pbn   = ppa / ppb;
-				block = &bm->barray[pbn];
 				BM_InvalidatePage(bm, ppa);
-				sram[idx].ptr_ram = (PTR)malloc(PAGESIZE);
-				memcpy(sram[idx].ptr_ram, &rb[i].value[j].value, PAGESIZE);
+				sram[idx].ptr_ram = rb[i].value[j].value;
 				sram[idx].oob_ram = rb[i].t_table[j].lba;
+			//	sram[idx].ptr_ram = (PTR)malloc(PAGESIZE);
+			//	memcpy(sram[idx].ptr_ram, &rb[i].value[j].value, PAGESIZE);
+	//			sram[idx].oob_ram = rb[i].t_table[j].lba;
 				idx++;
 			}
 
@@ -236,8 +264,8 @@ uint32_t check_rb_valid(SRAM *sram, uint32_t g_range){
 
 			}
 
-			free(&rb[i].t_table[j]);
-			inf_free_valueset(&rb[i].value[j], FS_MALLOC_R);
+//			free(&rb[i].t_table[j]);
+//			inf_free_valueset(&rb[i].value[j], FS_MALLOC_R);
 
 
 		}

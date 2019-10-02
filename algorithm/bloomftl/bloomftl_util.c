@@ -8,7 +8,7 @@ algo_req* assign_pseudo_req(TYPE type, value_set *temp_v, request *req){
 	params->type  = type;
 	params->value = temp_v;
 
-		
+			
 	switch(type){
 		case DATAR:
 			res->rapid=true;
@@ -20,6 +20,12 @@ algo_req* assign_pseudo_req(TYPE type, value_set *temp_v, request *req){
 			res->rapid=false;
 			break;
 		case GCDW:
+			res->rapid=false;
+			break;
+		case RBR:
+			res->rapid=false;
+			break;
+		case RBW:
 			res->rapid=false;
 			break;
 	}
@@ -44,7 +50,6 @@ void SRAM_unload(SRAM *sram, int64_t ppa, int idx, TYPE type){
 	temp_value = inf_get_valueset((PTR)sram[idx].ptr_ram, FS_MALLOC_W, PAGESIZE);
 	__bloomftl.li->write(ppa, PAGESIZE, temp_value, ASYNC, assign_pseudo_req(type, temp_value, NULL));
 	bloom_oob[ppa].lba = sram[idx].oob_ram;
-	free(sram[idx].ptr_ram);
 	return ;
 }
 
@@ -121,16 +126,16 @@ uint32_t ppa_alloc(uint32_t lba){
 	uint32_t ppa;
 //	uint32_t lba_offset;
 	uint32_t f_idx;
+	int32_t block_full;
 #if REBLOOM
 	uint32_t pre_lba, rb_cnt;
 #endif
 	//superblk = lba / mask;
 	superblk = (lba >> 2) % nos;
-	struct timeval start, end;
+	block_full = b_table[superblk].full;
+//	struct timeval start, end;
 
 
-//	bool rebloom_flag = 0;
-//	bool gc_flag = 0;
 	check_cnt++;
 	if(check_cnt >= RANGE){
 		check_flag = 1;
@@ -140,18 +145,29 @@ uint32_t ppa_alloc(uint32_t lba){
 	//Reblooming trigger
 	if(b_table[superblk].bf_num >= r_check){
 		b_table[superblk].first = 0;
+		rb_flag = 1;
+		static int b = 0;
+		if(superblk == 4318){
+			printf("RB - %d\n",b++);
+		}
 		rebloom_op(superblk);
-//		rebloom_flag = 1;
+		rb_flag = 0;
 	}
 #endif
 
-	if(b_table[superblk].full == pps){
+	if(block_full == pps){
 		b_table[superblk].first = 0;
-		gettimeofday(&start, NULL);
+//		gettimeofday(&start, NULL);
+		gc_flag = 1;
+
+		static int a = 0;
+		if(superblk == 4318){
+			printf("gc - %d\n",a++);
+		}
 		bloom_gc(superblk);
-		gettimeofday(&end, NULL);
-		printf("%.2lf (sec)\n",(double)(end.tv_usec-start.tv_usec)/1000000);
-//		gc_flag = 1;
+		gc_flag = 0;
+//		gettimeofday(&end, NULL);
+//		printf("%lf (sec)\n",(double)(end.tv_usec-start.tv_usec)/1000000);
 	}else{
 		get_cur_block(superblk);
 	}
@@ -231,12 +247,13 @@ uint32_t check_first(uint32_t lba){
 	Block *block;
 	uint32_t superblk;
 	uint32_t b_idx, b_offset;
-	uint32_t f_offset;
-	uint32_t ppa;
+	uint32_t f_offset = 0;
+	uint32_t ppa = 0;
+	uint32_t oob;
 	//superblk = lba / mask;
 	superblk = (lba >> 2) % nos;
 	
-	uint32_t full = b_table[superblk].full;
+	int32_t full = b_table[superblk].full;
 	for(int i = 0; i < full; i++){
 		if(sb[superblk].p_flag[i]){
 			f_offset = i;
@@ -248,8 +265,9 @@ uint32_t check_first(uint32_t lba){
 	
 	block = b_table[superblk].b_bucket[b_idx];
 	ppa   = (block->PBA * ppb) + b_offset;
+	oob   = bloom_oob[ppa].lba;
 
-	if(bloom_oob[ppa].lba != lba){
+	if(oob != lba){
 		printf("[READ FAIL] Check first !!\n");
 		exit(0);
 	}
@@ -259,8 +277,8 @@ uint32_t check_first(uint32_t lba){
 
 uint32_t table_lookup(uint32_t lba){
 	Block *block;	
-	int64_t ppa;
-	uint32_t superblk, pbn, p_idx, full;	
+	int64_t ppa =-1;
+	uint32_t superblk, full, oob;
 #if REBLOOM
 	uint8_t bits_len;
 #else
@@ -282,7 +300,8 @@ uint32_t table_lookup(uint32_t lba){
 			s_p_idx  = ((block->PBA * ppb) + b_offset) % pps;
 			ppa      = ((block->PBA * ppb) + b_offset);
 			if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
-				if(bloom_oob[ppa].lba == lba){
+				oob = bloom_oob[ppa].lba;
+				if(oob == lba){
 					found_cnt++;
 					break;
 				}else{
@@ -313,7 +332,8 @@ uint32_t table_lookup(uint32_t lba){
 		printf("LBA : %d lba_bf : %d\n",lba,lba_bf[lba]);
 		exit(0);
 	}
-	if(bloom_oob[ppa].lba != lba){
+	oob = bloom_oob[ppa].lba;
+	if(oob != lba){
 		
 		single_ppa_flag(superblk);
 		printf("[READ FAIL] OOB : %d LBA : %d\n",bloom_oob[ppa].lba, lba);
@@ -327,10 +347,10 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len)
 {
 	Block *block;
 	register uint32_t hashkey;
-	uint32_t superblk;
+	uint32_t superblk, oob;
 	uint32_t b_idx, b_offset;
 	uint32_t s_p_idx;
-	uint32_t f_offset = f_idx;
+	int32_t f_offset = f_idx;
 	int64_t ppa;	
 	uint8_t lsb_value;
 	
@@ -343,7 +363,8 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len)
 	ppa      = (block->PBA * ppb) + b_offset;
 	/*CASE 1 : If lba is head of coalesced lba */
 	if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
-		if(bloom_oob[ppa].lba == lba){
+		oob = bloom_oob[ppa].lba;
+		if(oob == lba){
 			found_cnt++;
 			return ppa;
 		}else{
@@ -356,7 +377,8 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len)
 	for(int i = 1; i < lsb_value+1; i++){
 		hashkey = hashing_key(lba-i);
 		if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
-			if(bloom_oob[ppa].lba == lba-i){
+			oob = bloom_oob[ppa].lba;
+			if(oob == lba-i){
 				sub_lookup_read++;
 				found_cnt++;
 				f_offset = f_offset + i;
@@ -367,7 +389,8 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len)
 				b_offset = f_offset % ppb;
 				block = b_table[superblk].b_bucket[b_idx];
 				ppa = (block->PBA * ppb) + b_offset;
-				if(bloom_oob[ppa].lba == lba){
+				oob = bloom_oob[ppa].lba;
+				if(oob == lba){
 					found_cnt++;
 					return ppa;
 				}else{
@@ -414,6 +437,7 @@ void reset_bf_table(uint32_t superblk){
 	uint32_t s_p_idx;
 	uint32_t f_offset = 0;
 	int64_t ppa = -1;
+	uint32_t b_full = b_table[superblk].full;
 #if REBLOOM
 	uint32_t pre_lba = OOR;
 	uint32_t rb_cnt;
@@ -455,8 +479,19 @@ void reset_bf_table(uint32_t superblk){
 			f_offset++;
 		}
 	}
-
-	if(f_offset != b_table[superblk].full){
+	/*
+	if(rb_flag){
+		printf("flag set!\n");
+		printf("superblk : %d\n",superblk);
+		printf("f_offset : %d full : %d\n",f_offset, b_table[superblk].full);
+	}else if(gc_flag){
+		printf("gc set!\n");
+		printf("superblk : %d\n",superblk);
+		printf("f_offset : %d full : %d\n",f_offset, b_table[superblk].full);
+	}
+	*/
+	if(f_offset != b_full){
+		printf("superblk : %d\n",superblk);
 		printf("f_offset : %d full : %d\n",f_offset, b_table[superblk].full);
 		printf("[FLAG OFFSET ERROR!]\n");
 		exit(0);

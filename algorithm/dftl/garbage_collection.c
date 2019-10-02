@@ -35,7 +35,7 @@ int32_t tpage_GC(){
         BM_InitializeBlock(bm, victim->PBA);
         return new_block;
     }
-    printf("tpage_GC()");
+//    printf("tpage_GC()");
 
     valid_page_num = 0;
     trans_gc_poll = 0;
@@ -90,7 +90,7 @@ int32_t tpage_GC(){
     /* Trim block */
     __demand.li->trim_block(old_block, false);
 
-	printf(" - %d\n", valid_page_num);
+	//printf(" - %d\n", valid_page_num);
 
     return new_block + valid_page_num;
 }
@@ -165,7 +165,7 @@ int32_t dpage_GC(){
         __demand.li->trim_block(old_block, false);
         return new_block;
     }
-	printf("dpage_GC");
+	//printf("dpage_GC");
 	//dpage_valid_check();
 
     valid_num = 0;
@@ -305,7 +305,7 @@ int32_t dpage_GC(){
     /* Trim data block */
     __demand.li->trim_block(old_block, false);
 
-	printf(" - %d\n", real_valid);
+//	printf(" - %d\n", real_valid);
 
     return new_block + real_valid;
 }

@@ -26,7 +26,7 @@
 #define SUPERBLK_SIZE 4
 #define MAX_RB 4
 #define SUPERBLK_GC 0
-#define REBLOOM 0
+#define REBLOOM 1
 #define OOR (RANGE+1)
 
 /* bit pattern for BF lookup */
@@ -60,7 +60,7 @@ typedef struct {
 #if !SUPERBLK_GC
 	Block **b_bucket;
 	uint32_t c_block;
-	uint32_t full;
+	int32_t full;
 #endif
 #if REBLOOM
 	uint32_t pre_lba;
@@ -95,7 +95,7 @@ typedef struct {
 }T_table;
 
 typedef struct SRAM{
-	uint32_t oob_ram;
+	int32_t oob_ram;
 	PTR ptr_ram;
 }SRAM;
 
@@ -138,19 +138,20 @@ extern bool check_flag;
 extern int32_t check_cnt;
 
 
-extern int32_t write_cnt;
-extern int32_t read_cnt;
-extern int32_t gc_write;
-extern int32_t gc_read;
-extern int32_t page_load;
-extern int32_t page_unload;
-extern int32_t block_erase_cnt;
-extern int32_t not_found_cnt;
-extern int32_t found_cnt;
-extern int32_t rb_read_cnt;
-extern int32_t rb_write_cnt;
+extern uint32_t algo_write_cnt;
+extern uint32_t algo_read_cnt;
+extern uint32_t gc_write;
+extern uint32_t gc_read;
 
-extern int32_t sub_lookup_read;
+extern volatile int32_t data_gc_poll;
+
+extern uint32_t block_erase_cnt;
+extern uint32_t not_found_cnt;
+extern uint32_t found_cnt;
+extern uint32_t rb_read_cnt;
+extern uint32_t rb_write_cnt;
+
+extern uint32_t sub_lookup_read;
 
 
 extern uint32_t lnb;
@@ -158,19 +159,20 @@ extern uint32_t mask;
 
 extern int32_t nob;
 extern int32_t ppb;
-extern uint32_t nop;
+extern int32_t nop;
 extern int32_t lnp;
 #if !SUPERBLK_GC
 extern int32_t nos;
 extern int32_t pps;
-extern int r_count;
+extern uint32_t r_count;
 
+extern bool rb_flag;
 extern bool gc_flag;
 #endif
 #if REBLOOM
-extern int32_t r_check;
+extern uint32_t r_check;
 #endif
-extern int32_t g_cnt;
+extern uint32_t g_cnt;
 
 //bloomftl_util.c
 
@@ -221,8 +223,8 @@ int invalid_block(Block **, int);
 //rebloom.c
 void rebloom_op(uint32_t);
 uint32_t rebloom_gc(SRAM *, uint32_t *, uint32_t *, uint32_t, uint32_t);
-uint32_t set_rebloom_list(uint32_t);
-uint32_t check_rb_valid(SRAM *, uint32_t);
+uint32_t set_rebloom_list(int32_t);
+uint32_t check_rb_valid(SRAM *, int32_t);
 #endif
 //Hash functions
 static inline uint32_t hashfunction(uint32_t key) {

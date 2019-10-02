@@ -1,7 +1,7 @@
 export CC=g++
 
 TARGET_INF=interface
-TARGET_LOWER=posix_async
+TARGET_LOWER=posix_memory
 #TARGET_ALGO=dftl
 #TARGET_LOWER=linux_aio
 TARGET_ALGO=bloomftl
@@ -20,7 +20,7 @@ COMMONFLAGS=\
 			-Wno-write-strings\
 			-DLARGEFILE64_SOURCE\
 			-DSLC\
-			-O0\
+			-O2\
 #			-fsanitize=address\
 			-static-libasan
 #			-DWRITESYNC\

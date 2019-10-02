@@ -8,7 +8,7 @@ uint32_t bloom_gc(uint32_t superblk){
 	Block *victim;
 	Page *valid_p, *sort_p;
 	victim = &bm->block[superblk];
-	int idx, k = 0;
+	uint32_t idx, k = 0;
 	uint32_t hashkey, lba, bf_idx;
 
 	valid_p = (Page *)malloc(sizeof(Page) * mask);
@@ -81,12 +81,13 @@ uint32_t bloom_gc(uint32_t superblk){
 	Block *victim;
 	SRAM *d_ram;
 
-	uint32_t valid_cnt;
-	uint32_t idx = 0;
-	uint32_t max_invalid, max_idx;
+	int32_t old_block;
+	int32_t valid_cnt;
+	int32_t idx = 0;
 	uint32_t pre_ppa;
 	int64_t ppa;
 
+	int32_t max_invalid, max_idx;
 
 	clock_t start,end;
 
@@ -100,14 +101,28 @@ uint32_t bloom_gc(uint32_t superblk){
 	*/
 	/*This fuction copies valid pages for a superblock. global pointer(gm) is pointing at them */
 
-//	start = clock();
+	//start = clock();
 	valid_cnt = invalid_block(bucket, -1); 
-//	end = clock();
+	/*
+	if(superblk == 4318){
+		for(int i = 0 ; i < valid_cnt; i++){
+			printf("valid_p[%d].lba : %d\n",i, valid_p[i].t_table->lba);
+		}
+		}
+	*/
+	
+	//end = clock();
 
-//	printf("Total invalid time : %lf\n",(double)(end-start)/CLOCKS_PER_SEC);
+	//printf("Total invalid time : %lf\n",(double)(end-start)/CLOCKS_PER_SEC);
 //	sleep(1);
 	//	printf("valid_cnt : %d\n",valid_cnt);
-	d_ram = (SRAM *)malloc(sizeof(SRAM) * valid_cnt);
+	d_ram = (SRAM *)malloc(sizeof(SRAM) * pps);
+	for(int i = 0 ; i < pps ; i++){
+		d_ram[i].oob_ram = -1;
+		d_ram[i].ptr_ram = NULL;
+	}
+
+
 
 	//Select Greedy block
 	max_idx = 0;
@@ -132,18 +147,37 @@ uint32_t bloom_gc(uint32_t superblk){
 	}
 	
 	// Init block and bloomfilter
-	__bloomftl.li->trim_block(victim->PBA * ppb, false);	
+	old_block = victim->PBA * ppb;
+	__bloomftl.li->trim_block(old_block, false);	
     BM_InitializeBlock(bm, victim->PBA);
-
 
 	block_erase_cnt++;
 	
 	memset(b_table[superblk].bf_arr, 0, sizeof(uint8_t) * bf->base_s_bytes);
     memset(sb[superblk].bf_page, -1, sizeof(Index) * pps);
     memset(sb[superblk].p_flag, 0, sizeof(bool) * pps);	
-
+#if REBLOOM
+	b_table[superblk].rb_cnt = 0;
+#endif
+	
 	b_table[superblk].bf_num = 0;
-
+	
+	
+	for(int i = 0 ; i < valid_cnt ; i++){
+		if(valid_p[i].t_table->b_idx == max_idx){
+			pre_ppa = valid_p[i].t_table->ppa;
+			bloom_oob[pre_ppa].lba = -1;	
+			d_ram[idx].oob_ram = valid_p[i].t_table->lba;
+			d_ram[idx].ptr_ram = valid_p[i].value->value;
+			//d_ram[idx].ptr_ram = (PTR)malloc(PAGESIZE);
+			//memcpy(d_ram[idx].ptr_ram, valid_p[i].value->value, PAGESIZE);
+			idx++;
+		}
+	}
+	
+	
+	
+	/*
 	for(int i = 0 ; i < valid_cnt ; i++){
 		if(valid_p[i].t_table->b_idx == max_idx){
 			d_ram[idx].ptr_ram = (PTR)malloc(PAGESIZE);
@@ -154,11 +188,21 @@ uint32_t bloom_gc(uint32_t superblk){
 			idx++;
 		}
 	}
+	*/
 	for(int i = 0; i < idx; i++){
+/*
+		if(superblk == 4318){
+			printf("lba : %d\n", d_ram[i].oob_ram);
+		}
+*/
 		ppa = (victim->PBA * ppb) + victim->p_offset;
 		SRAM_unload(d_ram, ppa, i, GCDW);
 		BM_ValidatePage(bm,ppa);
 		victim->p_offset++;
+	}
+	if(superblk == 4318){
+		printf("idx : %d\n",idx);
+		printf("pre_lba : %d\n",d_ram[idx-1].oob_ram);
 	}
 
 	/*
@@ -168,11 +212,14 @@ uint32_t bloom_gc(uint32_t superblk){
 	//start = clock();	
 	reset_bf_table(superblk);
 	//end = clock();
-
+	
+	
+	//printf("RESET TIME : %lf\n",(double)(end-start)/CLOCKS_PER_SEC);
 
 #if REBLOOM
-	if(idx != 0)
+	if(idx != 0){
 		b_table[superblk].pre_lba = d_ram[idx-1].oob_ram;
+	}
 #endif
 	b_table[superblk].c_block = SUPERBLK_SIZE-1;
 
@@ -185,14 +232,13 @@ uint32_t bloom_gc(uint32_t superblk){
 			free(gm[i].value);
 		}
 		gm[i].value = NULL;
+			
+		valid_p[i].t_table = NULL;
+		valid_p[i].value = NULL;
 	}
 
-//	free(valid_p);
-//	free(gm);
 	free(d_ram);
 
-//	valid_p = NULL;
-//	gm = NULL;
 
 	
 	return 0;
@@ -200,21 +246,21 @@ uint32_t bloom_gc(uint32_t superblk){
 #endif
 int invalid_block(Block **bucket, int b_idx){
 
-	G_manager *temp_g;
+	//G_manager *temp_g;
 	G_manager check_g, invalid_g;
-	Block *checker, *invalid_b;
-	uint32_t lba, pbn, p_idx;
-	int64_t ppa;
-	int k,weight;
-	uint32_t idx = 0;
-	int copy_cnt, invalid_cnt = 0;
+	Block *checker;
+	uint32_t ppa;
+	volatile int k = 0;
+	int weight;
+	uint32_t idx;
+	int invalid_cnt = 0;
 	int start_idx;
 	TYPE type;
 	k = 0, idx = 0, weight = 0;	
-	page_load = 0;
-	clock_t start, end;
+	data_gc_poll = 0;
+	//clock_t start, end;
 
-
+	uint32_t test_lba;
 	if(b_idx == -1){
 		//When GC trigger
 		start_idx = SUPERBLK_SIZE-1;
@@ -242,38 +288,45 @@ int invalid_block(Block **bucket, int b_idx){
 				}else{
 					type = GCDR;
 				}
+
 				gm[k].value = SRAM_load(gm, ppa, k, type);
 				gm[k].t_table->weight = weight++;
 				gm[k].t_table->b_idx = i;
+				test_lba = gm[k].t_table->lba;
 				k++;
 			}
 		}
 	}
 
-	while(page_load != k){
-#ifdef LEAKCHECK
-	//	sleep(1);
-#endif
-	} //polling for all page load	
-#if GC_POLL
-	page_load = 0;
-#endif
+
+
+	while(data_gc_poll != k){} //polling for all page load	
+	
 //	end = clock();
 
 //	printf("GC Read time : %lf\n",(double)(end-start)/CLOCKS_PER_SEC);
-	
-	start = clock();
+
+//	start = clock();
 	qsort(gm, k, sizeof(G_manager), lba_compare);
-	end = clock();
+//	end = clock();
 
 	//printf("sorting time: %lf\n",(double)(end-start)/CLOCKS_PER_SEC);
+
+	int superblk = (test_lba>>2) % nos;
+	if(superblk==4318){
+		printf("asdfasdf\n");
+		for(int i = 0 ; i < k; i++){
+			printf("gm[%d].lba :  %d\n",i,gm[i].t_table->lba);
+		}
+	}
+
 
 	check_g = gm[0];
 
 
 //	start = clock();
-	for(int i = 1; i < k; i++){
 
+	for(int i = 1; i < k; i++){
 		if(check_g.t_table->lba != gm[i].t_table->lba){
 			valid_p[idx++] = check_g;
 			check_g = gm[i];
@@ -290,10 +343,10 @@ int invalid_block(Block **bucket, int b_idx){
 				valid_p[idx++] = check_g;
 			}
 			ppa = invalid_g.t_table->ppa;
-			pbn = ppa / ppb;
+			//pbn = ppa / ppb;
 			BM_InvalidatePage(bm, ppa);
 			
-			invalid_b = &bm->barray[pbn];
+//			invalid_b = &bm->barray[pbn];
 			invalid_cnt++;
 		}
 	}
