@@ -30,18 +30,16 @@ algo_req* assign_pseudo_req(TYPE type, value_set *temp_v, request *req){
 			break;
 	}
 	
-//	res->type_lower = 0;
+	res->type_lower = 0;
 	res->end_req = bloom_end_req;
 	res->params  = (void *)params;
 	return res;
 }	
 
-value_set *SRAM_load(G_manager *g_sram, int64_t ppa , int idx, TYPE type){
+value_set *SRAM_load(int64_t ppa , int idx, TYPE type){
 	value_set *temp_value;
 	temp_value = inf_get_valueset(NULL, FS_MALLOC_R, PAGESIZE);
 	__bloomftl.li->read(ppa, PAGESIZE, temp_value, ASYNC, assign_pseudo_req(type, NULL, NULL));
-	g_sram[idx].t_table->lba = bloom_oob[ppa].lba;
-	g_sram[idx].t_table->ppa = ppa;
 	return temp_value;
 }
 
@@ -141,7 +139,6 @@ uint32_t ppa_alloc(uint32_t lba){
 		check_flag = 1;
 	}
 #if REBLOOM
-
 	//Reblooming trigger
 	if(b_table[superblk].bf_num >= r_check){
 		b_table[superblk].first = 0;
@@ -156,6 +153,7 @@ uint32_t ppa_alloc(uint32_t lba){
 #endif
 
 	if(block_full == pps){
+
 		b_table[superblk].first = 0;
 //		gettimeofday(&start, NULL);
 		gc_flag = 1;
@@ -163,6 +161,7 @@ uint32_t ppa_alloc(uint32_t lba){
 		static int a = 0;
 		if(superblk == 4318){
 			printf("gc - %d\n",a++);
+
 		}
 		bloom_gc(superblk);
 		gc_flag = 0;
@@ -207,9 +206,9 @@ uint32_t ppa_alloc(uint32_t lba){
 
 
 	ppa = (block->PBA * ppb) + p_idx;
-	BM_ValidatePage(bm, ppa);
+//	BM_ValidatePage(bm, ppa);
 	//Set valid & oob for block
-	bloom_oob[ppa].lba = lba;
+//	bloom_oob[ppa].lba = lba;
 	
 	block->p_offset++;
 	b_table[superblk].full++;

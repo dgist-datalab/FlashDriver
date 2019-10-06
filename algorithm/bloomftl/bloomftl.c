@@ -179,20 +179,19 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 	memset(bloom_oob, -1, sizeof(B_OOB) * nop);
 
 	//GC data structure
-	
+#if !REBLOOM
 	gm = (G_manager *)malloc(sizeof(G_manager) * pps);	
+#endif
 	valid_p = (G_manager *)malloc(sizeof(G_manager) * pps);
 
-#if REBLOOM
-	rb = (G_manager *)malloc(sizeof(G_manager) * pps);
-	re_list = (G_manager *)malloc(sizeof(G_manager) * SUPERBLK_SIZE);
-#endif
 
 	for(int i = 0 ; i < pps; i++){		
+#if !REBLOOM
 		gm[i].t_table = (T_table *)malloc(sizeof(T_table));
-		memset(gm[i].t_table, -1, sizeof(T_table));
+		memset(gm[i].t_table, 0, sizeof(T_table));
 		gm[i].value = NULL;
 		gm[i].size = 0;
+#endif
 		valid_p[i].t_table = NULL;
 		valid_p[i].value = NULL;
 	}
@@ -211,8 +210,9 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 	}
 	*/
 #if REBLOOM
-	/*
+	
 	//When reblooming is trigger, use a bucket for coalesced pages 
+	/*
 	rb = (G_manager *)malloc(sizeof(G_manager) * pps);
 	for(int i = 0 ; i < pps ; i++){
 		rb[i].t_table = (T_table *)malloc(sizeof(T_table) * MAX_RB);
@@ -226,7 +226,6 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 		re_list[i].t_table = (T_table *)malloc(sizeof(T_table) * ppb);
 		re_list[i].value   = (value_set *)malloc(sizeof(value_set) * ppb);
 		memset(re_list[i].t_table, 0, sizeof(T_table) * ppb);
-		re_list[i].value = NULL;
 		re_list[i].size = 0;
 	}
 	*/
@@ -363,13 +362,30 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 	free(lba_flag);
 	free(lba_bf);
 
+#if !REBLOOM
 	for(int i = 0 ; i < pps; i++){
 
 		free(gm[i].t_table);
 		gm[i].value = NULL;
 		gm[i].size = 0;
 	}
+/*
+#if REBLOOM
+		free(rb[i].t_table);
+		free(rb[i].value);
+#endif
+*/
+	}
 
+#endif
+/*
+#if REBLOOM
+	for(int i = 0 ; i < SUPERBLK_SIZE; i++){
+		free(re_list[i].t_table);
+		free(re_list[i].value);
+	}
+#endif
+*/
 
 	free(gm);
 	free(valid_p);
@@ -395,6 +411,11 @@ uint32_t bloom_write(request* const req){
 
 	my_req = assign_pseudo_req(DATAW, NULL, req);
 	__bloomftl.li->write(ppa, PAGESIZE, req->value, ASYNC, my_req);
+
+
+	BM_ValidatePage(bm, ppa);
+	bloom_oob[ppa].lba = lba;
+
 
 	algo_write_cnt++;
 

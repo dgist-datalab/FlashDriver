@@ -13,8 +13,8 @@ void rebloom_op(uint32_t superblk){
 	int32_t g_range, rb_valid_cnt;
 	int32_t valid_cnt;
 	
-	uint32_t free_space;
-	uint32_t erase_idx = 0;
+	int32_t free_space;
+	int32_t erase_idx = 0;
 	int64_t ppa;
 
 
@@ -23,13 +23,11 @@ void rebloom_op(uint32_t superblk){
 	/* init a global data structure for reblooming */
 	//When reblooming is trigger, use a bucket for coalesced pages 
 //	valid_p = (G_manager *)malloc(sizeof(G_manager) * pps);
-	
+		
 	rb = (G_manager *)malloc(sizeof(G_manager) * pps);	
 	re_list = (G_manager *)malloc(sizeof(G_manager) * SUPERBLK_SIZE);
 
 	for(int i = 0 ; i < pps ; i++){
-		//valid_p[i].t_table = NULL;
-		//valid_p[i].value = NULL;
 		rb[i].t_table = (T_table *)malloc(sizeof(T_table) * MAX_RB);
 		rb[i].value   = (value_set *)malloc(sizeof(value_set) * MAX_RB);
 		rb[i].size = 0;
@@ -40,21 +38,21 @@ void rebloom_op(uint32_t superblk){
 		re_list[i].value   = (value_set *)malloc(sizeof(value_set) * ppb);
 		re_list[i].size = 0;
 	}
-
+	
 	
 
 
 
 	//Invalid temporal table for blocks	
 	cur_idx  = b_table[superblk].c_block;
-	valid_cnt = invalid_block(bucket, cur_idx);
-
+	valid_cnt = invalid_block(bucket, cur_idx, superblk);
+	/*
 	if(superblk == 4318){
 		for(int i = 0 ; i < valid_cnt; i++){
 			printf("valid[%d].lba : %d\n",valid_p[i].t_table->lba);
 		}
 	}
-
+	*/
 
 
 	d_ram = (SRAM *)malloc(sizeof(SRAM) * pps);
@@ -88,6 +86,7 @@ void rebloom_op(uint32_t superblk){
 		}
 
 	}
+	//printf("rb_valid_cnt : %d full : %d\n",rb_valid_cnt, b_table[superblk].full);
 	//Reset current block pointer
 	reset_cur_idx(superblk);
 	for(int i = 0; i < rb_valid_cnt; i++){
@@ -97,6 +96,14 @@ void rebloom_op(uint32_t superblk){
 		p_idx = block->p_offset;
 		ppa = (block->PBA * ppb) + p_idx;
 		SRAM_unload(d_ram, ppa, i, RBW);
+		int test_superblk = d_ram[i].oob_ram;
+		test_superblk = (test_superblk >> 2) % nos;
+		if(superblk != test_superblk){
+			printf("LBA is wrong--> superblk : %d test_superblk : %d\n",superblk, test_superblk);
+			exit(0);
+		}
+
+
 		BM_ValidatePage(bm, ppa);	
 		block->p_offset++;	
 		b_table[superblk].full++;
@@ -115,46 +122,46 @@ void rebloom_op(uint32_t superblk){
 	
 	reset_bf_table(superblk);	
 	
-
-	for(int i = 0 ; i < pps ; i++){
-		memset(gm[i].t_table, -1, sizeof(T_table));
-		if(gm[i].value != NULL)
+	
+	for(int i = 0 ; i < pps ; i++){	
+		if(gm[i].value != NULL){
 			inf_free_valueset(gm[i].value, FS_MALLOC_R);
-		else{
+		}else{
 			free(gm[i].value);
 		}
+		free(rb[i].t_table);
+	//	inf_free_valueset(rb[i].value, FS_MALLOC_R);
 		gm[i].value = NULL;
 
 		valid_p[i].t_table = NULL;
 		valid_p[i].value = NULL;
-		
-		free(rb[i].t_table);
-		free(rb[i].value);
+
+	//	memset(rb[i].value, 0, sizeof(value_set) * MAX_RB);
 			
 	}
 
 	for(int i = 0 ; i < SUPERBLK_SIZE; i++){
 		free(re_list[i].t_table);
-		free(re_list[i].value);
+		//free(re_list[i].value);
+		//memset(re_list[i].t_table, -1, sizeof(T_table) * ppb);
+	//	memset(re_list[i].value, 0, sizeof(value_set) * ppb);
 	}
+	
 
 	free(rb);
 	free(re_list);
-	rb = NULL;
-	re_list = NULL;
-
 	free(d_ram);
 
 	return ;
 }
 
-uint32_t rebloom_gc(SRAM *sram, uint32_t *free_space, uint32_t *erase_idx, uint32_t superblk, uint32_t full){
+uint32_t rebloom_gc(SRAM *sram, int32_t *free_space, int32_t *erase_idx, uint32_t superblk, uint32_t full){
     Block **bucket = b_table[superblk].b_bucket;
     Block *victim;
     uint32_t idx = full;
-   // uint32_t max_invalid;
+	// uint32_t max_invalid;
 	//uint32_t max_idx, check_idx;
-    int32_t add_cnt;
+	int32_t add_cnt;
     uint32_t remove_idx = *erase_idx;
 
 	victim = bucket[remove_idx];
@@ -192,12 +199,12 @@ uint32_t set_rebloom_list(int32_t arr_size){
 	uint32_t max_group;
 	g_idx = 0;
 
-	rb[g_idx].t_table[0] = *(valid_p[0].t_table);
-	rb[g_idx].value[0] = *(valid_p[0].value);
+//	rb[g_idx].t_table[0] = *(valid_p[0].t_table);
+//	rb[g_idx].value[0] = *(valid_p[0].value);
 	
 	
-	//memcpy(&rb[g_idx].t_table[0], valid_p[0].t_table, sizeof(T_table));
-	//memcpy(&rb[g_idx].value[0], valid_p[0].value, sizeof(value_set));
+	memcpy(&rb[g_idx].t_table[0], valid_p[0].t_table, sizeof(T_table));
+	memcpy(&rb[g_idx].value[0], valid_p[0].value, sizeof(value_set));
 	
 //	inf_free_valueset(valid_p[0].value, FS_MALLOC_R);
 //	free(valid_p[0].t_table);
@@ -211,11 +218,11 @@ uint32_t set_rebloom_list(int32_t arr_size){
 			g_idx++;
 		}
 		rb_idx = rb[g_idx].size;
-		rb[g_idx].t_table[rb_idx] = *(valid_p[i].t_table);
-		rb[g_idx].value[rb_idx]   = *(valid_p[i].value);
+//		rb[g_idx].t_table[rb_idx] = *(valid_p[i].t_table);
+//		rb[g_idx].value[rb_idx]   = *(valid_p[i].value);
 
-//		memcpy(&rb[g_idx].t_table[rb_idx], valid_p[i].t_table, sizeof(T_table));
-//		memcpy(&rb[g_idx].value[rb_idx], valid_p[i].value, sizeof(value_set));
+		memcpy(&rb[g_idx].t_table[rb_idx], valid_p[i].t_table, sizeof(T_table));
+		memcpy(&rb[g_idx].value[rb_idx], valid_p[i].value, sizeof(value_set));
 
 //		free(valid_p[i].t_table);
 //		inf_free_valueset(valid_p[i].value, FS_MALLOC_R);
@@ -239,13 +246,15 @@ uint32_t set_rebloom_list(int32_t arr_size){
 uint32_t check_rb_valid(SRAM *sram, int32_t g_range){
 	uint32_t idx = 0;
 	uint32_t b_idx, b_offset;
-	uint32_t pbn,p_idx;
+	int32_t rb_size;
 	int64_t ppa;
 
 	for(int i = 0 ; i < g_range; i++){
-		for(int j = 0 ; j < rb[i].size; j++){
-			if(rb[i].size > 1){
+		rb_size = rb[i].size;
+		for(int j = 0 ; j < rb_size; j++){
+			if(rb_size > 1){
 				ppa   = rb[i].t_table[j].ppa;
+				bloom_oob[ppa].lba = -1;
 				BM_InvalidatePage(bm, ppa);
 				sram[idx].ptr_ram = rb[i].value[j].value;
 				sram[idx].oob_ram = rb[i].t_table[j].lba;
@@ -255,7 +264,7 @@ uint32_t check_rb_valid(SRAM *sram, int32_t g_range){
 				idx++;
 			}
 
-			if(rb[i].size == 1){
+			if(rb_size == 1){
 				b_idx = rb[i].t_table[j].b_idx;
 				b_offset = re_list[b_idx].size;
 				re_list[b_idx].t_table[b_offset] = rb[i].t_table[j];

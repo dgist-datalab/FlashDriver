@@ -102,7 +102,7 @@ uint32_t bloom_gc(uint32_t superblk){
 	/*This fuction copies valid pages for a superblock. global pointer(gm) is pointing at them */
 
 	//start = clock();
-	valid_cnt = invalid_block(bucket, -1); 
+	valid_cnt = invalid_block(bucket, -1, superblk); 
 	/*
 	if(superblk == 4318){
 		for(int i = 0 ; i < valid_cnt; i++){
@@ -190,20 +190,22 @@ uint32_t bloom_gc(uint32_t superblk){
 	}
 	*/
 	for(int i = 0; i < idx; i++){
-/*
-		if(superblk == 4318){
-			printf("lba : %d\n", d_ram[i].oob_ram);
-		}
-*/
 		ppa = (victim->PBA * ppb) + victim->p_offset;
 		SRAM_unload(d_ram, ppa, i, GCDW);
+		
+		int test_superblk = d_ram[i].oob_ram;
+		test_superblk = (test_superblk >> 2) % nos;
+
+		if(superblk != test_superblk){
+			printf("LBA is wrong--> superblk : %d test_superblk : %d\n",superblk, test_superblk); 
+			exit(0); 
+		}
+
+		
 		BM_ValidatePage(bm,ppa);
 		victim->p_offset++;
 	}
-	if(superblk == 4318){
-		printf("idx : %d\n",idx);
-		printf("pre_lba : %d\n",d_ram[idx-1].oob_ram);
-	}
+
 
 	/*
 	while(page_unload != 0){} // write polling
@@ -225,7 +227,7 @@ uint32_t bloom_gc(uint32_t superblk){
 
 	//Free data structures for GC
 	for(int i = 0 ; i < pps ; i++){
-		memset(gm[i].t_table, -1, sizeof(T_table));
+		//memset(gm[i].t_table, 0, sizeof(T_table));
 		if(gm[i].value != NULL)
 			inf_free_valueset(gm[i].value, FS_MALLOC_R);
 		else{
@@ -244,19 +246,20 @@ uint32_t bloom_gc(uint32_t superblk){
 	return 0;
 }
 #endif
-int invalid_block(Block **bucket, int b_idx){
+int invalid_block(Block **bucket, int b_idx, uint32_t superblk){
 
-	//G_manager *temp_g;
+	G_manager *temp_g;
 	G_manager check_g, invalid_g;
 	Block *checker;
 	uint32_t ppa;
 	volatile int k = 0;
+	int valid_page_num = 0;
 	int weight;
 	uint32_t idx;
 	int invalid_cnt = 0;
 	int start_idx;
 	TYPE type;
-	k = 0, idx = 0, weight = 0;	
+	idx = 0, weight = 0;	
 	data_gc_poll = 0;
 	//clock_t start, end;
 
@@ -269,15 +272,23 @@ int invalid_block(Block **bucket, int b_idx){
 		start_idx = b_idx;
 	}
 
-	/*
+	
 	temp_g = (G_manager *)malloc(sizeof(G_manager) * pps);
 	for(int i = 0; i < pps; i++){
 		temp_g[i].t_table = (T_table *)malloc(sizeof(T_table));
 		memset(temp_g[i].t_table, -1, sizeof(T_table));
 		temp_g[i].value = NULL;
 	}
+	gm = temp_g;
+	/*
+	for(int i = 0; i < pps; i++){
+		memset(gm[i].t_table, 0, sizeof(T_table));
+	}
 	*/
+
 //	start = clock();
+
+	uint32_t test_blk;
 	for(int i = start_idx; i>=0 ; i--){
 		checker = bucket[i];
 		for(int j = checker->p_offset-1; j>=0; j--){
@@ -289,36 +300,76 @@ int invalid_block(Block **bucket, int b_idx){
 					type = GCDR;
 				}
 
-				gm[k].value = SRAM_load(gm, ppa, k, type);
+				gm[k].t_table->lba = bloom_oob[ppa].lba;
+				gm[k].t_table->ppa = ppa;
 				gm[k].t_table->weight = weight++;
 				gm[k].t_table->b_idx = i;
+				test_blk = gm[k].t_table->lba;
+				test_blk = (test_blk >> 2) % nos;
+
+				if(superblk != test_blk){
+					printf("k : %d\n",k);
+					printf("superblk : %d test_blk :%d\n",superblk,test_blk);
+					printf("READ fail superblk different!\n");
+					exit(0);
+				}
+
+				
+				gm[k].value = SRAM_load(ppa, k, type);
+			
+
+
 				test_lba = gm[k].t_table->lba;
+
+//				uint32_t superblk = (test_lba>>2) % nos;
+//				printf("superblk : %d\n",superblk);
+				/*
+				if(superblk==4318){
+					printf("---LBA---\n");
+					printf("gm[%d].lba :  %d\n",valid_page_num,gm[k].t_table->lba);
+				}
+				*/			
+
 				k++;
+				valid_page_num++;
 			}
 		}
 	}
 
 
-
 	while(data_gc_poll != k){} //polling for all page load	
 	
+	//printf("valid_page_num : %d\n",k);
 //	end = clock();
 
 //	printf("GC Read time : %lf\n",(double)(end-start)/CLOCKS_PER_SEC);
 
 //	start = clock();
 	qsort(gm, k, sizeof(G_manager), lba_compare);
-//	end = clock();
+/*	
+	printf("test_lba : %d\n", test_lba);
+	printf("k : %d\n", k);
+	for(int i = 0 ; i < pps; i++){
+		printf("gm[%d].lba :  %d\n",i,gm[i].t_table->lba);
+	}
+	*/
+	//	end = clock();
 
 	//printf("sorting time: %lf\n",(double)(end-start)/CLOCKS_PER_SEC);
 
-	int superblk = (test_lba>>2) % nos;
+	//test_lba = gm[k].t_table->lba;
+	/*
 	if(superblk==4318){
-		printf("asdfasdf\n");
-		for(int i = 0 ; i < k; i++){
+		printf("test_lba : %d\n", test_lba);
+		printf("superblk : %d\n",superblk);
+		printf("k : %d\n", k);
+		for(int i = 0 ; i < pps; i++){
 			printf("gm[%d].lba :  %d\n",i,gm[i].t_table->lba);
 		}
+		sleep(1);
 	}
+	*/
+		fflush(stdout);
 
 
 	check_g = gm[0];

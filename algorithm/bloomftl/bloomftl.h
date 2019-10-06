@@ -188,7 +188,7 @@ uint32_t check_first(uint32_t);
 
 
 algo_req* assign_pseudo_req(TYPE, value_set *, request *);
-value_set* SRAM_load(G_manager *, int64_t, int ,TYPE);
+value_set* SRAM_load(int64_t, int ,TYPE);
 void SRAM_unload(SRAM *, int64_t, int, TYPE);
 
 
@@ -217,12 +217,12 @@ uint32_t bf_bytes(uint32_t);
 
 //gc.c
 uint32_t bloom_gc(uint32_t);
-int invalid_block(Block **, int);
+int invalid_block(Block **, int, uint32_t);
 
 #if REBLOOM
 //rebloom.c
 void rebloom_op(uint32_t);
-uint32_t rebloom_gc(SRAM *, uint32_t *, uint32_t *, uint32_t, uint32_t);
+uint32_t rebloom_gc(SRAM *, int32_t *, int32_t *, uint32_t, uint32_t);
 uint32_t set_rebloom_list(int32_t);
 uint32_t check_rb_valid(SRAM *, int32_t);
 #endif

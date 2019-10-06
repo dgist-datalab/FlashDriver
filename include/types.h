@@ -14,7 +14,7 @@
 #define FS_ITER_RLS_T 11
 #define FS_RANGEGET_T 12
 
-#define LREQ_TYPE_NUM 9
+#define LREQ_TYPE_NUM 11
 #define TRIM 0
 #define MAPPINGR 1
 #define MAPPINGW 2
