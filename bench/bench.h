@@ -43,6 +43,21 @@
 #define SYS_RUN_16		"/home/yumin/real_trace/sysbench_16/f2fs_run_16.out"
 
 
+//Filebench
+
+#define FSERVER_W_16    "/home/yumin/file_bench/file_trace/filebench_fileserver_16.out"
+#define VARMAIL_W_16    "/home/yumin/file_bench/file_trace/filebench_varmail_16.out"
+
+//FIO
+#define FIO_MIX_16      "/home/yumin/fio_bench/fio_mixed_16.out"
+#define FIO_RW_16       "/home/yumin/fio_bench/fio_rw_16.out"
+#define FIO_SW_16       "/home/yumin/fio_bench/fio_sw_16.out"
+
+#define FIO_RR_16       "/home/yumin/fio_bench/fio_rr_16.out"
+#define FIO_SR_16       "/home/yumin/fio_bench/fio_sr_16.out"
+
+
+
 #ifdef CDF
 #define TIMESLOT 10 //micro sec
 #endif

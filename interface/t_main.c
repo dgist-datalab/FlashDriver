@@ -12,8 +12,8 @@
 #include "../bench/bench.h"
 #include "../bench/measurement.h"
 #include "interface.h"
-#define LOAD_FILE YCSB_LOAD_16
-#define RUN_FILE  YCSB_RUN_16
+#define LOAD_FILE ROCKS_R_W_16
+#define RUN_FILE  ROCKS_RW_RR_16
 #define BLK_NUM 8
 MeasureTime *bt;
 MeasureTime *st;
@@ -125,6 +125,7 @@ int main(int argc, char *argv[]) {
 //	memset(trace_cdf, 0, sizeof(uint64_t) * ((1000000/TIMESLOT)+1));
 	measure_start(bt);	
 //	cnt = 0;
+	
 	while (fscanf(r_fp, "%s %s %llu %lf", command, type, &offset, &cal_len) != EOF) {
 	 	
 //		printf("cnt = %d\n",cnt++);
@@ -152,20 +153,23 @@ int main(int argc, char *argv[]) {
 				real_r_cnt++;
 			}
 
-			/*if (++cnt % 10240 == 0) {
+			/*
+			if (++cnt % 10240 == 0) {
 			 	MA(&st);
 				total_sec = st.adding.tv_sec + (float)st.adding.tv_usec/1000000;
 	  			printf("\ntotal sec: %.2f\n", total_sec);
 	 			printf("read throughput: %.2fMB/s\n", (float)read_cnt*8192/total_sec/1000/1000);
 				printf("write throughput: %.2fMB/s\n\n", (float)write_cnt*8192/total_sec/1000/1000);
 				MS(&st);
-			}*/
+			}
+			*/
 		}
 		memset(command,0,sizeof(char) * 2);
 		memset(type,0,sizeof(char)*5);
 		fflush(stdout);
 
 	}
+
 	measure_adding(bt);
 	printf("%s bench complete!\n",RUN_FILE);
 	fclose(r_fp);

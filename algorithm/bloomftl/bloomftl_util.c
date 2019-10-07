@@ -8,7 +8,7 @@ algo_req* assign_pseudo_req(TYPE type, value_set *temp_v, request *req){
 	params->type  = type;
 	params->value = temp_v;
 
-			
+	/*			
 	switch(type){
 		case DATAR:
 			res->rapid=true;
@@ -29,8 +29,7 @@ algo_req* assign_pseudo_req(TYPE type, value_set *temp_v, request *req){
 			res->rapid=false;
 			break;
 	}
-	
-	res->type_lower = 0;
+	*/
 	res->end_req = bloom_end_req;
 	res->params  = (void *)params;
 	return res;
@@ -130,8 +129,9 @@ uint32_t ppa_alloc(uint32_t lba){
 #endif
 	//superblk = lba / mask;
 	superblk = (lba >> 2) % nos;
-	block_full = b_table[superblk].full;
-//	struct timeval start, end;
+
+//	printf("LBA : %d\n",lba);
+	//	struct timeval start, end;
 
 
 	check_cnt++;
@@ -142,29 +142,16 @@ uint32_t ppa_alloc(uint32_t lba){
 	//Reblooming trigger
 	if(b_table[superblk].bf_num >= r_check){
 		b_table[superblk].first = 0;
-		rb_flag = 1;
-		static int b = 0;
-		if(superblk == 4318){
-			printf("RB - %d\n",b++);
-		}
 		rebloom_op(superblk);
-		rb_flag = 0;
 	}
 #endif
 
-	if(block_full == pps){
+	if(b_table[superblk].full == pps){
 
 		b_table[superblk].first = 0;
 //		gettimeofday(&start, NULL);
-		gc_flag = 1;
 
-		static int a = 0;
-		if(superblk == 4318){
-			printf("gc - %d\n",a++);
-
-		}
 		bloom_gc(superblk);
-		gc_flag = 0;
 //		gettimeofday(&end, NULL);
 //		printf("%lf (sec)\n",(double)(end.tv_usec-start.tv_usec)/1000000);
 	}else{
