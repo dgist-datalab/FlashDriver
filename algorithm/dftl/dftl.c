@@ -316,6 +316,11 @@ void demand_destroy(lower_info *li, algorithm *algo){
     total_cnt = write_cnt + read_cnt;
     r_cnt     = read_cnt;
     w_cnt     = write_cnt;
+#if FILEBENCH_SET
+	real_total_cnt = total_cnt;
+	real_w_cnt = write_cnt;
+	real_r_cnt = read_cnt;
+#endif
 
     real_total_cnt = real_w_cnt + real_r_cnt;
     real_t_miss_ratio = (double) (real_cache_r_miss + real_cache_w_miss) / real_total_cnt * 100;

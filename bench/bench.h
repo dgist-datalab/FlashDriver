@@ -45,9 +45,10 @@
 
 //Filebench
 
-#define FSERVER_W_16    "/home/yumin/file_bench/file_trace/filebench_fileserver_16.out"
-#define VARMAIL_W_16    "/home/yumin/file_bench/file_trace/filebench_varmail_16.out"
-
+#define FSERVER_W_16    "/home/yumin/file_bench/file_trace/fserver_16.out"
+#define VARMAIL_W_16    "/home/yumin/file_bench/file_trace/varmail_16.out"
+#define WEBSERVER_W_16    "/home/yumin/file_bench/file_trace/webserver_16.out"
+#define WEBPROXY_W_16    "/home/yumin/file_bench/file_trace/webproxy_16.out"
 //FIO
 #define FIO_MIX_16      "/home/yumin/fio_bench/fio_mixed_16.out"
 #define FIO_RW_16       "/home/yumin/fio_bench/fio_rw_16.out"

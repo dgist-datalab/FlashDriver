@@ -2,9 +2,9 @@ export CC=g++
 
 TARGET_INF=interface
 TARGET_LOWER=posix_memory
-#TARGET_ALGO=dftl
+TARGET_ALGO=dftl
 #TARGET_LOWER=linux_aio
-TARGET_ALGO=bloomftl
+#TARGET_ALGO=bloomftl
 
 
 

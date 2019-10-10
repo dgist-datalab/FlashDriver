@@ -12,7 +12,7 @@
 #include "../bench/bench.h"
 #include "../bench/measurement.h"
 #include "interface.h"
-#define LOAD_FILE ROCKS_R_W_16
+#define LOAD_FILE FSERVER_W_16
 #define RUN_FILE  ROCKS_RW_RR_16
 #define BLK_NUM 8
 MeasureTime *bt;
@@ -116,6 +116,7 @@ int main(int argc, char *argv[]) {
 	printf("%s load complete!\n\n",LOAD_FILE);
 	fclose(w_fp);
 	printf("%s bench start!\n", RUN_FILE);
+#if !FILEBENCH_SET
 	r_fp = fopen(RUN_FILE, "r");
 	if (r_fp == NULL) {
 		printf("No file\n");
@@ -173,7 +174,7 @@ int main(int argc, char *argv[]) {
 	measure_adding(bt);
 	printf("%s bench complete!\n",RUN_FILE);
 	fclose(r_fp);
-
+#endif
 	total_sec = bt->adding.tv_sec + (float)bt->adding.tv_usec/1000000;
 	req_t_cnt = real_w_cnt + real_r_cnt;
 	printf("--------------- summary ------------------\n");

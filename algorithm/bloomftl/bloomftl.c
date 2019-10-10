@@ -74,12 +74,13 @@ void bloom_create(void){
 
 
 	lnp = L_DEVICE / PAGESIZE;
-	mask = ceil((ppb * (1 - 0.07)));
+	mask = MASK;
 
 	nob = (lnp / mask) + 1;
 	nop = nob * ppb;
 #if REBLOOM
 	r_check = ppb/2;
+	bf->base_s_bytes = bf->base_s_bytes/2;
 #endif
 
 
@@ -88,7 +89,6 @@ void bloom_create(void){
 	gm = (GCmanager *)malloc(sizeof(GCmanager) * mask);
 	lba_flag = (bool *)malloc(sizeof(bool) * lnp);
 
-	memset(gm, 0, sizeof(GCmanager) * mask);
 	memset(lba_flag, 0, sizeof(bool) * lnp);
 
 	printf("---- BloomFTL (SUPER) ----\n");
@@ -151,6 +151,7 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 
 #if REBLOOM
 	r_check = pps/2;
+	bf->base_s_bytes = bf->base_s_bytes / 2;
 #endif
 
 
@@ -331,7 +332,7 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 		flag_memory += (ppb*SUPERBLK_SIZE) / 8;
 		max_memory  += (512*12)/8;
 
-		free(b_table[i].bf_arr);
+		//free(b_table[i].bf_arr);
 		free(sb[i].bf_page);
 		free(sb[i].p_flag);
 #if REBLOOM
@@ -365,19 +366,20 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 		gm[i].size = 0;
 
 #if REBLOOM
-		free(rb[i].t_table);
-		free(rb[i].value);
+		//free(rb[i].t_table);
+		//free(rb[i].value);
 #endif
 
 	}
 
 
 #if REBLOOM
+	/*
 	for(int i = 0 ; i < SUPERBLK_SIZE; i++){
 		free(re_list[i].t_table);
 		free(re_list[i].value);
 	}
-	
+	*/
 	free(rb);
 	free(re_list);
 #endif
