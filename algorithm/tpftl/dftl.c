@@ -188,7 +188,7 @@ uint32_t demand_create(lower_info *li, algorithm *algo){
     max_cache_entry = (num_page / EPP) + ((num_page % EPP != 0) ? 1 : 0);
 
    
-    free_cache_size = ceil(1024 * PAGESIZE * 0.22); 
+    free_cache_size = ceil(4096 * PAGESIZE * 0.235); 
     total_cache_size = free_cache_size;
     prefetch_cnt = 0;
 

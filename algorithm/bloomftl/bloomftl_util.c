@@ -30,6 +30,7 @@ algo_req* assign_pseudo_req(TYPE type, value_set *temp_v, request *req){
 			break;
 	}
 	*/
+	res->type_lower = 0;
 	res->end_req = bloom_end_req;
 	res->params  = (void *)params;
 	return res;
@@ -69,7 +70,16 @@ int lba_compare(const void *a, const void *b){
 
 	return 0;
 }
+int gc_compare(const void *a, const void *b){
+	SRAM *g1 = (SRAM *)a;
+	SRAM *g2 = (SRAM *)b;
 
+	if(g1->oob_ram < g2->oob_ram)
+		return -1;
+	if(g1->oob_ram > g2->oob_ram)
+		return 1;
+	return 0;
+}
 
 
 #if SUPERBLK_GC
@@ -120,15 +130,15 @@ uint32_t ppa_alloc(uint32_t lba){
 	Block *block;
 	uint32_t superblk, cur_idx;
 	uint32_t p_idx, s_p_idx;
-	uint32_t ppa;
-//	uint32_t lba_offset;
+	uint32_t invalid_ppa, ppa;
+	uint32_t i_pbn, i_idx;
 	uint32_t f_idx;
 	int32_t block_full;
 #if REBLOOM
 	uint32_t pre_lba, rb_cnt;
 #endif
 	//superblk = lba / mask;
-	superblk = (lba >> 2) % nos;
+	superblk = (lba >> S_BIT) % nos;
 
 //	printf("LBA : %d\n",lba);
 	//	struct timeval start, end;
@@ -138,6 +148,16 @@ uint32_t ppa_alloc(uint32_t lba){
 	if(check_cnt >= RANGE){
 		check_flag = 1;
 	}
+
+	if(!lba_flag[lba])
+		lba_flag[lba] = 1;
+	else{
+		invalid_ppa = table_lookup(lba,0);
+	//	printf("invalid_ppa : %d\n",invalid_ppa);
+		BM_InvalidatePage(bm, invalid_ppa);
+	}
+
+
 #if REBLOOM
 	//Reblooming trigger
 	if(b_table[superblk].bf_num >= r_check){
@@ -152,8 +172,6 @@ uint32_t ppa_alloc(uint32_t lba){
 //		gettimeofday(&start, NULL);
 
 		bloom_gc(superblk);
-//		gettimeofday(&end, NULL);
-//		printf("%lf (sec)\n",(double)(end.tv_usec-start.tv_usec)/1000000);
 	}else{
 		get_cur_block(superblk);
 	}
@@ -188,14 +206,12 @@ uint32_t ppa_alloc(uint32_t lba){
 	}
 #endif
 
-	if(!lba_flag[lba])
-		lba_flag[lba] = 1;
 
 
 	ppa = (block->PBA * ppb) + p_idx;
-//	BM_ValidatePage(bm, ppa);
+	BM_ValidatePage(bm, ppa);
 	//Set valid & oob for block
-//	bloom_oob[ppa].lba = lba;
+	bloom_oob[ppa].lba = lba;
 	
 	block->p_offset++;
 	b_table[superblk].full++;
@@ -209,7 +225,7 @@ uint32_t ppa_alloc(uint32_t lba){
 
 uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
 	//uint32_t superblk = lba / mask;
-	uint32_t superblk = (lba >> 2) % nos;
+	uint32_t superblk = (lba >> S_BIT) % nos;
 	uint32_t hashkey, bf_idx;
 	hashkey = hashing_key(lba);
 
@@ -237,7 +253,7 @@ uint32_t check_first(uint32_t lba){
 	uint32_t ppa = 0;
 	uint32_t oob;
 	//superblk = lba / mask;
-	superblk = (lba >> 2) % nos;
+	superblk = (lba >> S_BIT) % nos;
 	
 	int32_t full = b_table[superblk].full;
 	for(int i = 0; i < full; i++){
@@ -261,7 +277,7 @@ uint32_t check_first(uint32_t lba){
 	return ppa;
 }
 
-uint32_t table_lookup(uint32_t lba){
+uint32_t table_lookup(uint32_t lba, bool flag){
 	Block *block;	
 	int64_t ppa =-1;
 	uint32_t superblk, full, oob;
@@ -273,7 +289,7 @@ uint32_t table_lookup(uint32_t lba){
 #endif	
 	
 	//superblk = lba / mask;
-	superblk = (lba >> 2) % nos;
+	superblk = (lba >> S_BIT) % nos;
 	full = b_table[superblk].full;
 
 #if !REBLOOM
@@ -289,6 +305,7 @@ uint32_t table_lookup(uint32_t lba){
 				oob = bloom_oob[ppa].lba;
 				if(oob == lba){
 					found_cnt++;
+
 					break;
 				}else{
 					not_found_cnt++;
@@ -300,7 +317,7 @@ uint32_t table_lookup(uint32_t lba){
 	bits_len = 0;
 	for(int i = full-1; i >=0; i--){
 		if(sb[superblk].p_flag[i]){
-			ppa = bf_lookup(lba, i, bits_len);
+			ppa = bf_lookup(lba, i, bits_len, flag);
 			if(ppa != -1){
 				break;
 			}
@@ -310,7 +327,6 @@ uint32_t table_lookup(uint32_t lba){
 			bits_len++;
 		}
 	}
-
 #endif
 
 	if(ppa == -1){
@@ -319,8 +335,7 @@ uint32_t table_lookup(uint32_t lba){
 		exit(0);
 	}
 	oob = bloom_oob[ppa].lba;
-	if(oob != lba){
-		
+	if(oob != lba){		
 		single_ppa_flag(superblk);
 		printf("[READ FAIL] OOB : %d LBA : %d\n",bloom_oob[ppa].lba, lba);
 		exit(0);
@@ -329,7 +344,7 @@ uint32_t table_lookup(uint32_t lba){
 	return ppa;	
 
 }
-int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len)
+int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len, bool flag)
 {
 	Block *block;
 	register uint32_t hashkey;
@@ -340,7 +355,9 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len)
 	int64_t ppa;	
 	uint8_t lsb_value;
 	
-	superblk = (lba >> 2) % nos;
+	uint32_t check_offset, c_range;
+
+	superblk = (lba >> S_BIT) % nos;
 	hashkey  = hashing_key(lba);
 	b_idx    = f_offset / ppb;
 	b_offset = f_offset % ppb;
@@ -351,40 +368,69 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len)
 	if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
 		oob = bloom_oob[ppa].lba;
 		if(oob == lba){
-			found_cnt++;
+			if(flag)
+				found_cnt++;
+			else
+				gc_read++;
 			return ppa;
 		}else{
-			not_found_cnt++;
+			if(flag)
+				not_found_cnt++;
+			else
+				gc_read++;
 		}
 	}
 
+	if(bits_len == 0)
+		return -1;
+
 	lsb_value = lba % MAX_RB;
 
-	for(int i = 1; i < lsb_value+1; i++){
+	c_range = bits_len;
+//	printf("bis_len : %d\n",bits_len);
+//	printf("lsb_value : %d\n",lsb_value);
+	if(bits_len > lsb_value)
+		c_range = lsb_value;
+
+
+	for(int i = 1; i < c_range+1; i++){
 		hashkey = hashing_key(lba-i);
 		if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
+			check_offset = f_offset + i;
+			if(check_offset >= pps)
+				continue;
 			oob = bloom_oob[ppa].lba;
-			if(oob == lba-i){
-				sub_lookup_read++;
-				found_cnt++;
-				f_offset = f_offset + i;
+
+			//This hear real sub_read operation
+			if(oob == lba-i){	
+				f_offset = check_offset;
 				if(f_offset >= pps){
 					continue;
 				}
+				//sub_lookup_read++;
 				b_idx = f_offset / ppb;
 				b_offset = f_offset % ppb;
 				block = b_table[superblk].b_bucket[b_idx];
 				ppa = (block->PBA * ppb) + b_offset;
 				oob = bloom_oob[ppa].lba;
 				if(oob == lba){
-					found_cnt++;
+					if(flag)
+						found_cnt++;
+					else
+						gc_read++;
 					return ppa;
 				}else{
-					not_found_cnt++;
+					if(flag)
+						not_found_cnt++;
+					else
+						gc_read++;
 				}
 
 			}else{
-				not_found_cnt++;
+				if(flag)
+					not_found_cnt++;
+				else
+					gc_read++;
 			}
 		}
 	}
@@ -428,6 +474,7 @@ void reset_bf_table(uint32_t superblk){
 	uint32_t pre_lba = OOR;
 	uint32_t rb_cnt;
 #endif
+
 	for(int i = 0 ; i < SUPERBLK_SIZE; i++){
 		block = bucket[i];
 		for(int j = 0 ; j < block->p_offset; j++){

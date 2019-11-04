@@ -11,7 +11,7 @@ int32_t hash_primary_gc(){
 	int32_t new_block;
 	int32_t sec_ppa;
 	uint8_t all;
-	int valid_page_num;
+	volatile int valid_page_num;
 	
 	Block *victim;
 	Block *cur_secondary;
@@ -145,7 +145,7 @@ int32_t hash_secondary_gc(){
 	int32_t old_block;
 	int32_t new_block;
 	uint8_t all;
-	int valid_page_num;
+	volatile int valid_page_num;
 	bool pba_flag = 0;
 	Block *victim;
 	Block *cur_secondary;

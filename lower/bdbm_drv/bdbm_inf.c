@@ -28,6 +28,7 @@ lower_info memio_info={
 };
 
 uint32_t memio_info_create(lower_info *li){
+
 	li->NOB=_NOB;
 	li->NOP=_NOP;
 	li->SOB=BLOCKSIZE;

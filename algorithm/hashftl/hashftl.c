@@ -51,7 +51,7 @@ int32_t num_page_off;          // number of page offset bits
 int32_t hid_secondary;        // hid that indicate mapping is at secondary table
 int32_t loop_gc;			// number of gc to immitate chip level parallelism
 
-int32_t gc_load;
+volatile int32_t gc_load;
 int32_t gc_count;			// number of total gc
 int32_t re_gc_count;		// number of gc due to remap
 int32_t re_page_count;		// number of moved page during remap
@@ -262,8 +262,7 @@ void *hash_end_req(algo_req* input){
 			data_w++;	
 			if(res){
 				res->end_req(res);
-			}
-			
+			}	
 			break;
 		case GC_R:
 			gc_r++;
@@ -338,16 +337,13 @@ uint32_t hash_get(request* const req){
 	int32_t lpa;
 	int32_t ppa;
 
-	bench_algo_start(req);
 	lpa = req->key;
 	ppa = get_ppa_from_table(lpa);
 	if(ppa == -1){
-		bench_algo_end(req);
 		req->type = FS_NOTFOUND_T;
 		req->end_req(req);
 		return 1;
 	}
-	bench_algo_end(req);
 	__hashftl.li->read(ppa, PAGESIZE, req->value, ASYNC, assign_pseudo_req(DATA_R, NULL, req));
 	return 0;
 }
@@ -376,9 +372,6 @@ uint32_t hash_set(request* const req){
 		printf("ppa is not found error!\n");
 		exit(0);
 	}
-	my_req = assign_pseudo_req(DATA_W, NULL, req);
-	__hashftl.li->write(ppa, PAGESIZE, req->value, ASYNC, my_req);
-	
 	//Invalidate previous ppa (update case)
 	if(pri_table[lpa].hid != -1){
 		BM_InvalidatePage(bm ,get_ppa_from_table(lpa));
@@ -420,6 +413,9 @@ uint32_t hash_set(request* const req){
 		num_secondary++;
 
 	}
+	my_req = assign_pseudo_req(DATA_W, NULL, req);
+	__hashftl.li->write(ppa, PAGESIZE, req->value, ASYNC, my_req);
+	
 
 	BM_ValidatePage(bm, ppa);
 	hash_OOB[ppa].lpa = lpa;

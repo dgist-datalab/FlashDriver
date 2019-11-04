@@ -5,73 +5,6 @@
 uint32_t bloom_gc(uint32_t superblk){
 
 
-	Block *victim;
-	Page *valid_p, *sort_p;
-	victim = &bm->block[superblk];
-	uint32_t idx, k = 0;
-	uint32_t hashkey, lba, bf_idx;
-
-	valid_p = (Page *)malloc(sizeof(Page) * mask);
-	//Invalid date pages. This is read operations
-	for(int i = victim->p_offset-1; i>=0; i--){
-		if(victim->valid[i]){
-			gc_read++;
-			lba = victim->page[i].oob;
-			idx = lba % mask;
-			if(!gm[idx].update){
-				valid_p[k++].oob = lba;
-				gm[idx].update = 1;
-			}else{
-				victim->valid[i] = 0;
-				victim->invalid_cnt++;
-			}
-		}
-	}
-
-	memset(gm,0, sizeof(GCmanager) * mask);
-
-	
-	sort_p = (Page *)malloc(sizeof(Page) * k);
-	for(int i = 0; i < k; i++){
-		sort_p[i].oob = valid_p[i].oob;
-		lba_flag[sort_p[i].oob] = 0;
-	}
-
-	free(valid_p);
-
-	qsort(sort_p, k, sizeof(Page), compare);
-	
-	//Init block and bloomfilter
-	block_reset(victim);
-	block_erase_cnt++;
-	b_table[superblk].bf_num = 0;
-	memset(b_table[superblk].bf_arr, 0, sizeof(uint8_t) * bf->base_s_bytes);
-	memset(sb[superblk].bf_page, 0, sizeof(Index) * _PPB);
-	memset(sb[superblk].p_flag, 0, sizeof(bool) * _PPB);
-
-
-	//Rewrite page and bloomfilter
-	for(int i = 0 ; i < k; i++){
-		gc_write++;
-		lba = sort_p[i].oob;
-		if(i != 0){
-			hashkey = hashing_key(lba);
-			bf_idx = b_table[superblk].bf_num;
-			sb[superblk].bf_page[i].s_idx = bf_idx;
-			set_bf(hashkey+i, superblk, i);
-
-			sb[superblk].p_flag[i] = 1;
-			b_table[superblk].bf_num++;
-			lba_flag[lba] = 1;
-		}
-		victim->valid[i] = 1;
-		victim->page[i].oob = lba;
-		victim->p_offset++;
-	}
-
-	free(sort_p);
-	return victim->p_offset;
-
 }
 //Single block unit GC
 #else
@@ -81,16 +14,19 @@ uint32_t bloom_gc(uint32_t superblk){
 	Block *victim;
 	SRAM *d_ram;
 
+	value_set **temp_set;
+
 	int32_t old_block;
 	int32_t valid_cnt;
 	int32_t idx = 0;
 	uint32_t pre_ppa;
 	int64_t ppa;
-
+	
 	int32_t max_invalid, max_idx;
-
 	clock_t start,end;
 
+	volatile int k = 0;
+	data_gc_poll = 0;
 	/*
 	valid_p = (G_manager *)malloc(sizeof(G_manager) * pps);
 	
@@ -102,7 +38,7 @@ uint32_t bloom_gc(uint32_t superblk){
 	/*This fuction copies valid pages for a superblock. global pointer(gm) is pointing at them */
 
 	//start = clock();
-	valid_cnt = invalid_block(bucket, -1, superblk); 
+	//valid_cnt = invalid_block(bucket, -1, superblk); 
 	/*
 	if(superblk == 4318){
 		for(int i = 0 ; i < valid_cnt; i++){
@@ -117,6 +53,7 @@ uint32_t bloom_gc(uint32_t superblk){
 //	sleep(1);
 	//	printf("valid_cnt : %d\n",valid_cnt);
 	d_ram = (SRAM *)malloc(sizeof(SRAM) * pps);
+	temp_set = (value_set **)malloc(sizeof(value_set *) * pps);
 	for(int i = 0 ; i < pps ; i++){
 		d_ram[i].oob_ram = -1;
 		d_ram[i].ptr_ram = NULL;
@@ -146,6 +83,20 @@ uint32_t bloom_gc(uint32_t superblk){
 		bucket[SUPERBLK_SIZE-1] = victim;
 	}
 	
+	for(int i = 0 ; i < victim->p_offset; i++){
+		ppa = (victim->PBA * ppb) + i;
+		if(BM_IsValidPage(bm, ppa)){
+			temp_set[k] = SRAM_load(ppa, k, GCDR);
+			d_ram[k].oob_ram = bloom_oob[ppa].lba;
+			d_ram[k].ptr_ram = temp_set[k]->value;
+			
+			bloom_oob[ppa].lba = -1;
+			k++;
+		}
+	}
+	
+	while(data_gc_poll != k){};
+	
 	// Init block and bloomfilter
 	old_block = victim->PBA * ppb;
 	__bloomftl.li->trim_block(old_block, false);	
@@ -158,11 +109,12 @@ uint32_t bloom_gc(uint32_t superblk){
     memset(sb[superblk].p_flag, 0, sizeof(bool) * pps);	
 #if REBLOOM
 	b_table[superblk].rb_cnt = 0;
+	//qsort(d_ram, k, sizeof(SRAM), gc_compare);
 #endif
 	
 	b_table[superblk].bf_num = 0;
 	
-	
+	/*
 	for(int i = 0 ; i < valid_cnt ; i++){
 		if(valid_p[i].t_table->b_idx == max_idx){
 			pre_ppa = valid_p[i].t_table->ppa;
@@ -174,7 +126,7 @@ uint32_t bloom_gc(uint32_t superblk){
 			idx++;
 		}
 	}
-	
+	*/
 	
 	
 	/*
@@ -189,33 +141,25 @@ uint32_t bloom_gc(uint32_t superblk){
 		}
 	}
 	*/
-	for(int i = 0; i < idx; i++){
+	for(int i = 0; i < k; i++){
 		ppa = (victim->PBA * ppb) + victim->p_offset;
 		SRAM_unload(d_ram, ppa, i, GCDW);
 		BM_ValidatePage(bm,ppa);
 		victim->p_offset++;
+		free(d_ram[i].ptr_ram);
 	}
-
-
-	/*
-	while(page_unload != 0){} // write polling
-	*/
-
-	//start = clock();	
+	
+	for(int i = 0 ; i < k ; i++){
+		free(temp_set[i]);
+	}
 	reset_bf_table(superblk);
-	//end = clock();
-	
-	
-	//printf("RESET TIME : %lf\n",(double)(end-start)/CLOCKS_PER_SEC);
-
 #if REBLOOM
-	if(idx != 0){
-		b_table[superblk].pre_lba = d_ram[idx-1].oob_ram;
+	if(k != 0){
+		b_table[superblk].pre_lba = d_ram[k-1].oob_ram;
 	}
 #endif
 	b_table[superblk].c_block = SUPERBLK_SIZE-1;
-
-	//Free data structures for GC
+	/*
 	for(int i = 0 ; i < pps ; i++){
 		memset(gm[i].t_table, -1, sizeof(T_table));
 		if(gm[i].value != NULL)
@@ -224,13 +168,13 @@ uint32_t bloom_gc(uint32_t superblk){
 			free(gm[i].value);
 		}
 		gm[i].value = NULL;
-			
+
 		valid_p[i].t_table = NULL;
 		valid_p[i].value = NULL;
 	}
-
+	*/
+	//Free data structures for GC
 	free(d_ram);
-
 
 	
 	return 0;

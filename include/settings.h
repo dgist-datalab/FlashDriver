@@ -33,7 +33,7 @@
 #elif defined(SLC)
 
 #define GIGAUNIT 16L
-#define _OPAREA (GIGAUNIT*G*0.07)
+#define _OPAREA (GIGAUNIT*G*0.25)
 
 #if !BFTL
 #define TOTALSIZE ((GIGAUNIT*G)+_OPAREA)
@@ -41,22 +41,28 @@
 //#define TOTALSIZE (GIGAUNIT * G)
 #define REALSIZE (512L*G)
 #define DEVSIZE (64L * G)
-#define PAGESIZE (4*K)
+#define PAGESIZE (8*K)
 
 #define _PPB (1<<7)
-#define BPS (1)
+#define BPS (4)
 
 #define _PPS (_PPB * BPS)
-#define SUPERBLK_SIZE 4
+#define A_SIZE 4
 
 
 #if BFTL
 #define L_DEVICE ((GIGAUNIT * G))
 #define L_PAGES  (L_DEVICE / PAGESIZE)
-#define MASK ceil((_PPB*SUPERBLK_SIZE) * (1 - 0.07))
+#define MASK ceil((_PPB*A_SIZE) * (1 - 0.25))
 
-#define _NOS ceil((L_PAGES / MASK)) * SUPERBLK_SIZE // Total physical blocks
-#define _NOP (_NOS * _PPB)
+#if ZYNQ_ON
+#define _NOS ceil(((L_PAGES / MASK) * A_SIZE) / BPS)  // Total physical blocks
+#define _NOB (_NOS * BPS)
+#else
+#define _NOS ceil((L_PAGES / MASK)) * A_SIZE // Total physical blocks
+#define _NOB (_NOS)
+#endif
+#define _NOP (_NOB * _PPB)
 #define TOTALSIZE (_NOP * PAGESIZE)
 #else
 
@@ -74,9 +80,9 @@
 #if !BFTL
 #define _NOS ceil(TOTALSIZE/(_PPS*PAGESIZE))
 #define _NOP (_PPS*_NOS)
+#define _NOB (_NOS*BPS)
 #endif
 
-#define _NOB (BPS*_NOS)
 #define _RNOS (REALSIZE/(_PPS*PAGESIZE))//real number of segment
 
 #define RANGE (GIGAUNIT*(M/PAGESIZE)*1024L)

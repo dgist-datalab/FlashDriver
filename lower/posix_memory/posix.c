@@ -33,6 +33,8 @@
 #include "../../algorithm/hashftl/hashftl.h"
 #elif defined(bloomftl)
 #include"../../algorithm/bloomftl/bloomftl.h"
+#elif defined(seq_hashftl)
+#include "../../algorithm/seq_hashftl/hashftl.h"
 
 #else
 #include "../../algorithm/Lsmtree/lsmtree.h"
@@ -174,6 +176,9 @@ void *posix_make_trim(KEYT PPA, bool async){
 #endif
 
 uint32_t posix_create(lower_info *li){
+	uint64_t nos = _NOS;
+
+	
 	li->NOB=_NOS;
 	li->NOP=_NOP;
 	li->SOB=BLOCKSIZE*BPS;

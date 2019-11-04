@@ -30,7 +30,7 @@ int32_t tpage_GC(){
     t_reserved->hn_ptr = BM_Heap_Insert(trans_b, t_reserved);
     t_reserved = victim;
     if(all){ // if all page is invalid, then just trim and return
-		puts("tpage_GC() - all");
+//		puts("tpage_GC() - all");
         __demand.li->trim_block(old_block, false);
         BM_InitializeBlock(bm, victim->PBA);
         return new_block;
@@ -161,7 +161,7 @@ int32_t dpage_GC(){
     d_reserved->hn_ptr = BM_Heap_Insert(data_b, d_reserved);
     d_reserved = victim;
     if(all){ // if all page is invalid, then just trim and return
-    	puts("dpage_GC - all");
+//    	puts("dpage_GC - all");
         __demand.li->trim_block(old_block, false);
         return new_block;
     }

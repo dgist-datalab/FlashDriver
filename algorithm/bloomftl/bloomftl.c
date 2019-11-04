@@ -5,7 +5,8 @@ algorithm __bloomftl = {
 	.destroy = bloom_destroy,
 	.read    = bloom_read,
 	.write   = bloom_write,
-	.remove  = NULL
+//	.remove  = bloom_remove
+	.remove = NULL
 };
 
 BF *bf;
@@ -24,6 +25,14 @@ G_manager *re_list;
 bool *lba_flag;
 bool *lba_bf;
 
+#if W_BUFF
+skiplist *write_buffer;
+uint64_t max_write_buf;
+uint32_t buf_idx;
+struct prefetch_struct *prefetcher;
+#endif
+
+
 bool check_flag;
 int32_t check_cnt;
 
@@ -41,6 +50,8 @@ uint32_t rb_read_cnt;
 uint32_t rb_write_cnt;
 
 uint32_t sub_lookup_read;
+uint32_t remove_read;
+
 
 uint32_t lnb;
 uint32_t mask;
@@ -73,14 +84,14 @@ void bloom_create(void){
 	bf = bf_init(1, ppb);
 
 
-	lnp = L_DEVICE / PAGESIZE;
+	lnp = L_PAGES;
 	mask = MASK;
 
-	nob = (lnp / mask) + 1;
-	nop = nob * ppb;
+	nob = _NOS;
+	nop = _NOP;
 #if REBLOOM
 	r_check = ppb/2;
-	bf->base_s_bytes = bf->base_s_bytes/2;
+	bf->base_s_bytes = bf->base_s_bytes;
 #endif
 
 
@@ -125,7 +136,6 @@ void bloom_create(void){
 		
 	}
 
-	bm = storage_init(nob, ppb);
 
 	return ;
 
@@ -135,35 +145,52 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 
 
 	algo->li = li;
-
+	uint64_t a = TOTALSIZE;
 	ppb = _PPB;
-	//pps = ppb * SUPERBLK_SIZE;
-	pps = _PPS*SUPERBLK_SIZE;
-	
+	pps = ppb * SUPERBLK_SIZE;
+	//pps = _PPS*SUPERBLK_SIZE;
+	printf("TOTALSIZE : %lld\n",a);
 	//Set global bloomfilter
 	bf = bf_init(1, pps);
-
+	uint64_t b,c;
+	b = _NOS;
+	c = _NOB;
+	printf("_NOB : %d\n",b);
+	printf("_NOS : %d\n",c);
+	
 
 	//lnp = L_DEVICE / PAGESIZE;
 	//mask = ceil((pps * (1 - 0.07)));
 	lnp = L_PAGES;
 	mask = MASK;
-
 #if REBLOOM
 	r_check = pps/2;
-	bf->base_s_bytes = bf->base_s_bytes / 2;
+	bf->base_s_bytes = (bf->base_s_bytes);
+#endif
+
+#if W_BUFF
+	write_buffer = skiplist_init();
+	max_write_buf = 1024;
+	prefetcher = (struct prefetch_struct *)malloc(sizeof(struct prefetch_struct) * max_write_buf);
+	for(size_t i = 0 ; i < max_write_buf; i++){
+		prefetcher[i].ppa = 0;
+		prefetcher[i].sn = NULL;
+	}
 #endif
 
 
+	/*
 	if(_PPB != (1 << 7)){
 		printf("PAGE PER BLOCK ERROR. Please reset macro _PPB variable\n");
+		
 		exit(0);
 	}
+	*/
 //	printf("bf->base_s_bytes : %d\n", bf->base_s_bytes);
 
 	//nob = (lnp / mask);
 	//nob = (nob+1) * SUPERBLK_SIZE;
-	nob = _NOS;
+	nob = _NOB;
 	nos = nob / SUPERBLK_SIZE;
 	//nop = nob * ppb;
 	nop = _NOP;
@@ -305,13 +332,14 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 	printf("Total GC write I/O count   : %d\n",gc_write);
 	printf("Total GC read  I/O count   : %d\n",gc_read);
 #if REBLOOM
+	printf("Total Remove read I/O count: %d\n",remove_read);
 	printf("Total sub lookup I/O count : %d\n",sub_lookup_read);
 	printf("Total RB write I/O count   : %d\n",rb_write_cnt);
 	printf("Total RB read  I/O count   : %d\n",rb_read_cnt);
 #endif
 	printf("Total block erase count    : %d\n",block_erase_cnt);
 	if(algo_read_cnt != 0){
-		printf("Total RAF Result       : %.2lf\n", (float) (found_cnt+not_found_cnt) / algo_read_cnt);
+		printf("Total RAF Result       : %.2lf\n", (float) (sub_lookup_read+found_cnt+not_found_cnt) / algo_read_cnt);
 	}
 	if(algo_write_cnt != 0){
 #if REBLOOM	
@@ -393,7 +421,9 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 	free(bloom_oob);
 	BM_Free(bm);
 
-	
+#if W_BUFF
+	skiplist_free(write_buffer);
+#endif
 	
 	return ;
 }
@@ -403,17 +433,49 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 uint32_t bloom_write(request* const req){
 	uint32_t ppa;
 	uint32_t lba = req->key;
+	uint32_t flush_lba;
 	algo_req *my_req;
-
 	
-	ppa = ppa_alloc(lba);
+	snode *temp;
+	static bool is_flush = false;
 
-	my_req = assign_pseudo_req(DATAW, NULL, req);
-	__bloomftl.li->write(ppa, PAGESIZE, req->value, ASYNC, my_req);
+#if W_BUFF
+	if(write_buffer->size == max_write_buf){
+		for(size_t i = 0; i < max_write_buf; i++){
+			temp = prefetcher[i].sn;
+			flush_lba = temp->key;
+			ppa = ppa_alloc(flush_lba);
 
+			my_req = assign_pseudo_req(DATAW, temp->value, NULL);
+			__bloomftl.li->write(ppa, PAGESIZE, temp->value, ASYNC, my_req);
+			temp->value = NULL;
+		}
 
-	BM_ValidatePage(bm, ppa);
-	bloom_oob[ppa].lba = lba;
+		for(size_t i = 0 ; i < max_write_buf; i++){
+			prefetcher[i].ppa = 0;
+			prefetcher[i].sn = NULL;
+		}
+		buf_idx = 0;
+		skiplist_free(write_buffer);
+		write_buffer = skiplist_init();
+
+		__bloomftl.li->lower_flying_req_wait();
+		is_flush=true;
+
+	}
+
+	temp = skiplist_insert(write_buffer, lba, req->value, true);
+
+	if(write_buffer->size == buf_idx+1){
+		//ppa = ppa_alloc(temp->key);
+		//temp->ppa = ppa;
+		prefetcher[buf_idx++].sn = temp;
+		//BM_ValidatePage(bm, ppa);
+		//bloom_oob[ppa].lba = lba;
+	}
+#endif
+	req->value = NULL;
+	req->end_req(req);
 
 	algo_write_cnt++;
 
@@ -430,7 +492,11 @@ uint32_t bloom_read(request* const req){
 	int idx;
 	register uint32_t hashkey;
 	lba = req->key;
-
+	if(lba > RANGE+1){
+		printf("range error %d\n",lba);
+		exit(0);
+	}
+	
 	read_cnt++; // Total read requests
 	superblk = lba / mask;
 	//superblk = (lba>>2) % nos;
@@ -472,18 +538,35 @@ uint32_t bloom_read(request* const req){
 #else
 uint32_t bloom_read(request* const req){
 	
+#if W_BUFF
+	snode *temp;
+#endif
 
 	algo_req *my_req;
 	uint32_t ppa;
 	uint32_t lba = req->key;
-	
-	
+	if(lba > RANGE+1){
+		printf("range error %d\n",lba);
+		exit(0);
+	}
+
 	
 	algo_read_cnt++;
 	if(lba_flag[lba] == 0){
 		req->end_req(req);
 		return UINT32_MAX;
 	}
+
+	if((temp = skiplist_find(write_buffer, lba))){
+		memcpy(req->value->value, temp->value->value, PAGESIZE);
+		req->type_ftl = 0;
+		req->type_lower = 0;
+		req->end_req(req);
+		return 1;
+	}
+
+
+
 	//printf("read_cnt : %d\n",read_cnt++);
 	my_req = assign_pseudo_req(DATAR, NULL, req);
 #if !REBLOOM
@@ -494,7 +577,7 @@ uint32_t bloom_read(request* const req){
 	}
 #endif
 
-	ppa = table_lookup(lba);
+	ppa = table_lookup(lba, 1);
 	__bloomftl.li->read(ppa, PAGESIZE, req->value, ASYNC, my_req);
 	
 	return 1;
@@ -502,6 +585,39 @@ uint32_t bloom_read(request* const req){
 }
 #endif
 
+uint32_t bloom_remove(request* const req){
+	
+	algo_req *my_req;
+	uint32_t lba = req->key;
+	uint32_t ppa;
+	if(lba_flag[lba] == 0){
+		req->end_req(req);
+		return UINT32_MAX;
+	}
+
+
+	if(lba_flag[lba] == 0){
+		req->end_req(req);
+		return UINT32_MAX;
+	}
+
+
+	my_req = assign_pseudo_req(DATAR, NULL, req);
+	ppa = table_lookup(lba,1);	
+	__bloomftl.li->read(ppa, PAGESIZE, req->value, ASYNC, my_req);
+	
+	remove_read++;
+	BM_InvalidatePage(bm, ppa);
+	bloom_oob[ppa].lba = -1;
+
+
+	req->end_req(req);
+	return 1;
+
+
+
+	
+}
 
 
 void *bloom_end_req(algo_req *input){
@@ -516,6 +632,9 @@ void *bloom_end_req(algo_req *input){
 			}
 			break;
 		case DATAW:
+#if W_BUFF
+			inf_free_valueset(temp_set, FS_MALLOC_W);
+#endif
 			if(res){
 				res->end_req(res);
 			}

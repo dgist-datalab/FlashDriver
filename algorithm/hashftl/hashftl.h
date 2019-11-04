@@ -109,7 +109,7 @@ extern int32_t hid_secondary;
 extern int32_t loop_gc;
 extern int32_t pba_secondary;
 
-extern int32_t gc_load;
+extern volatile int32_t gc_load;
 extern int32_t gc_count;
 extern int32_t re_gc_count;
 extern int32_t re_page_count;

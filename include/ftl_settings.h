@@ -5,12 +5,14 @@
 #define C_CACHE 0
 
 // sftl & tpftl flag
-#define S_FTL 1
+#define S_FTL 0
 #define TPFTL 0
 #define BFTL  0
+#define ZYNQ_ON 0
 
-#define REAL_BENCH_SET 1
-#define FILEBENCH_SET 1
+
+#define REAL_BENCH_SET 0
+#define FILEBENCH_SET 0
 // memcpy op gc flag
 #define MEMCPY_ON_GC 0
 

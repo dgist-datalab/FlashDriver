@@ -366,12 +366,11 @@ void inf_init(){
 	mp.algo=&algo_lsm;
 #elif defined(badblock)
 	mp.algo=&__badblock;
-#elif defined(hashftl)
+#elif defined(hashftl) || defined(seq_hashftl)
 	mp.algo=&__hashftl;
 #elif defined(bloomftl)
 	mp.algo=&__bloomftl;
 #endif
-
 	mp.li->create(mp.li);
 	mp.algo->create(mp.li,mp.algo);
 

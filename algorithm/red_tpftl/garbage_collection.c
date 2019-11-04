@@ -30,12 +30,12 @@ int32_t tpage_GC(){
     t_reserved->hn_ptr = BM_Heap_Insert(trans_b, t_reserved);
     t_reserved = victim;
     if(all){ // if all page is invalid, then just trim and return
-		puts("tpage_GC() - all");
+//		puts("tpage_GC() - all");
         __demand.li->trim_block(old_block, false);
         BM_InitializeBlock(bm, victim->PBA);
         return new_block;
     }
-    printf("tpage_GC()");
+  //  printf("tpage_GC()");
 
     valid_page_num = 0;
     trans_gc_poll = 0;
@@ -90,7 +90,7 @@ int32_t tpage_GC(){
     /* Trim block */
     __demand.li->trim_block(old_block, false);
 
-	printf(" - %d\n", valid_page_num);
+	//printf(" - %d\n", valid_page_num);
 
     return new_block + valid_page_num;
 }
@@ -137,11 +137,11 @@ int32_t dpage_GC(){
     d_reserved->hn_ptr = BM_Heap_Insert(data_b, d_reserved);
     d_reserved = victim;
     if(all){ // if all page is invalid, then just trim and return
-    	puts("dpage_GC - all");
+    //	puts("dpage_GC - all");
         __demand.li->trim_block(old_block, false);
         return new_block;
     }
-	printf("dpage_GC");
+	//printf("dpage_GC");
 
     valid_num = 0;
     real_valid = 0;
@@ -296,7 +296,7 @@ int32_t dpage_GC(){
     /* Trim data block */
     __demand.li->trim_block(old_block, false);
 
-	printf(" - %d\n", real_valid);
+	//printf(" - %d\n", real_valid);
 
     return new_block + real_valid;
 }

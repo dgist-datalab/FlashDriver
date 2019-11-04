@@ -3,12 +3,10 @@ CC = g++
 CFLAGS_ALGO +=\
 
 SRCS +=\
-	   bloomftl.c\
-	   bloomfilter.c\
-	   bloomftl_util.c\
-	   gc.c\
-	   rebloom.c\
-	   debugging.c\
+	   hashftl.c\
+	   hashftl_util.c\
+	   hashftl_gc.c\
+	   md5.c\
 
 OBJS :=\
 	$(patsubst %.c,%.o,$(SRCS))\

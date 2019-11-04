@@ -12,10 +12,10 @@
 //RocksDB bench setting
 
 #define ROCKS_S_W_16   "/home/yumin/real_trace/rocksdb_16/rocks_s_w_16.out"
-#define ROCKS_R_W_16   "/home/yumin/real_trace/rocksdb_16/rocks_r_w_16.out"
+#define ROCKS_R_W_16   "/home/yumin/real_trace/db_bench_16/db2_r_w_16.out"
 #define ROCKS_SW_RR_16 "/home/yumin/real_trace/rocksdb_16/rocks_sw_rr_16.out"
 #define ROCKS_RW_SR_16 "/home/yumin/real_trace/rocksdb_16/rocks_rw_sr_16.out"
-#define ROCKS_RW_RR_16 "/home/yumin/real_trace/rocksdb_16/rocks_rw_rr_16.out"
+#define ROCKS_RW_RR_16 "/home/yumin/real_trace/db_bench_16/db2_rwrr_16.out"
 #define ROCKS_S_W_32   "/home/yumin/real_trace/rocksdb_32/rocks_s_w_32.out"
 #define ROCKS_R_W_32   "/home/yumin/real_trace/rocksdb_32/rocks_r_w_32.out"
 #define ROCKS_SW_RR_32 "/home/yumin/real_trace/rocksdb_32/rocks_sw_rr_32.out"
@@ -29,8 +29,10 @@
 #define TPC_C_BENCH_32 "/home/yumin/real_trace/tpc_32/tpc_bench_32.out"
 
 //YCSB bench setting
-#define YCSB_LOAD_16   "/home/yumin/real_trace/ycsb_16/ycsb_load_16a.out"
-#define YCSB_RUN_16    "/home/yumin/real_trace/ycsb_16/ycsb_run_16a.out"
+#define YCSB_LOAD_16   "/home/yumin/real_trace/test/t2_load_16.out"
+#define YCSB_RUN_16    "/home/yumin/real_trace/test/t2_run_16.out"
+
+
 #define YCSB_LOAD_32   "/home/yumin/real_trace/ycsb_32/ycsb_load_32a.out"
 #define YCSB_RUN_32    "/home/yumin/real_trace/ycsb_32/ycsb_run_32a.out"
 
@@ -43,19 +45,42 @@
 #define SYS_RUN_16		"/home/yumin/real_trace/sysbench_16/f2fs_run_16.out"
 
 
+
 //Filebench
 
-#define FSERVER_W_16    "/home/yumin/file_bench/file_trace/fserver_16.out"
-#define VARMAIL_W_16    "/home/yumin/file_bench/file_trace/varmail_16.out"
-#define WEBSERVER_W_16    "/home/yumin/file_bench/file_trace/webserver_16.out"
-#define WEBPROXY_W_16    "/home/yumin/file_bench/file_trace/webproxy_16.out"
-//FIO
-#define FIO_MIX_16      "/home/yumin/fio_bench/fio_mixed_16.out"
-#define FIO_RW_16       "/home/yumin/fio_bench/fio_rw_16.out"
-#define FIO_SW_16       "/home/yumin/fio_bench/fio_sw_16.out"
+#define FSERVER_LOAD_16     "/home/yumin/real_trace/filebench_16/fserver_load_16.out"
+#define FSERVER_RUN_16      "/home/yumin/real_trace/filebench_16/fserver_run_16.out"
 
-#define FIO_RR_16       "/home/yumin/fio_bench/fio_rr_16.out"
-#define FIO_SR_16       "/home/yumin/fio_bench/fio_sr_16.out"
+#define VARMAIL_LOAD_16     "/home/yumin/real_trace/filebench_16/varmail_load_16.out"
+#define VARMAIL_RUN_16      "/home/yumin/real_trace/filebench_16/varmail_run_16.out"
+
+
+#define WEBSERVER_LOAD_16   "/home/yumin/real_trace/filebench_16/webserver_load_16.out"
+#define WEBSERVER_RUN_16    "/home/yumin/real_trace/filebench_16/webserver_run_16.out"
+
+
+#define WEBPROXY_LOAD_16    "/home/yumin/real_trace/filebench_16/webproxy_load_16.out"
+#define WEBPROXY_RUN_16     "/home/yumin/real_trace/filebench_16/webproxy_run_16.out"
+
+
+//FIO
+#define FIO_SR_LOAD_16  "/home/yumin/real_trace/fio_16/fio_sr_load_16.out"
+#define FIO_SR_16       "/home/yumin/real_trace/fio_16/fio_sr_run_16.out"
+
+#define FIO_RR_LOAD_16  "/home/yumin/real_trace/fio_16/fio_rr_load_16.out"
+#define FIO_RR_16       "/home/yumin/real_trace/fio_16/fio_rr_run_16.out"
+
+#define FIO_MIX_LOAD_16 "/home/yumin/real_trace/fio_16/fio_mix_load_16.out"
+#define FIO_MIX_16      "/home/yumin/real_trace/fio_16/fio_mix_run_16.out"
+
+#define FIO_RWSR_LOAD_16    "/home/yumin/real_trace/fio_16/fio_rwsr_load_16.out"
+#define FIO_RWSR_RUN_16     "/home/yumin/real_trace/fio_16/fio_rwsr_run_16.out"
+
+#define FIO_RWMIX_LOAD_16       "/home/yumin/real_trace/fio_16/fio_rwmix_load_16.out"
+#define FIO_RWMIX_RUN_16        "/home/yumin/real_trace/fio_16/fio_rwmix_run_16.out"
+
+#define FIO_RWRR_LOAD_16    "/home/yumin/real_trace/fio_16/fio_rwrr_load_16.out"
+#define FIO_RWRR_RUN_16     "/home/yumin/real_trace/fio_16/fio_rwrr_run_16.out"
 
 
 

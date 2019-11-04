@@ -19,12 +19,19 @@
 #include "../../include/ftl_settings.h"
 #include "../blockmanager/BM.h"
 
+#ifdef W_BUFF
+#include "../Lsmtree/skiplist.h"
+#endif
+
+
 #define TYPE uint8_t
 
 #define SYMMETRIC 1
 #define PR_SUCCESS 0.9
 #define SUPERBLK_SIZE 4
-#define MAX_RB 4
+#define MAX_RB 2
+#define S_BIT (MAX_RB/2)
+
 #define SUPERBLK_GC 0
 #define REBLOOM 1
 #define OOR (RANGE+1)
@@ -111,6 +118,11 @@ typedef struct bloom_params{
 	TYPE type;
 }bloom_params;
 
+struct prefetch_struct {
+	uint32_t ppa;
+	snode *sn;
+};
+
 
 extern algorithm __bloomftl;
 
@@ -150,7 +162,7 @@ extern uint32_t not_found_cnt;
 extern uint32_t found_cnt;
 extern uint32_t rb_read_cnt;
 extern uint32_t rb_write_cnt;
-
+extern uint32_t remove_read;
 extern uint32_t sub_lookup_read;
 
 
@@ -177,13 +189,14 @@ extern uint32_t g_cnt;
 //bloomftl_util.c
 
 int lba_compare(const void *, const void *);
+int gc_compare(const void *, const void *);
 uint32_t ppa_alloc(uint32_t);
 
 void set_bf(uint32_t, uint32_t, uint32_t);
 void reset_cur_idx(uint32_t);
 
-uint32_t table_lookup(uint32_t);
-int64_t bf_lookup(uint32_t, uint32_t, uint8_t);
+uint32_t table_lookup(uint32_t, bool);
+int64_t bf_lookup(uint32_t, uint32_t, uint8_t, bool);
 uint32_t check_first(uint32_t);
 
 
@@ -244,6 +257,8 @@ static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
     uint32_t bf_bits, h;
 
     int start = sb[pbn].bf_page[p_idx].s_idx;
+
+//	printf("start : %d\n",start);
 	int length = bf->base_bf[p_idx].s_bits;
     int end_byte = (start*length + length - 1) / 8;
     int end_bit = (start*length + length - 1) % 8;

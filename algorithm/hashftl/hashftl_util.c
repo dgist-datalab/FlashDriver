@@ -15,6 +15,7 @@ algo_req* assign_pseudo_req(TYPE type, value_set *temp_v, request *req){
 	pseudo_my_req->type = type;
 	params->type = type;
 	params->value = temp_v;
+	/*
 	switch(type){
 		case DATA_R:
 			pseudo_my_req->rapid = true;
@@ -29,6 +30,7 @@ algo_req* assign_pseudo_req(TYPE type, value_set *temp_v, request *req){
 			pseudo_my_req->rapid = false;
 			break;
 	}
+	*/
 	pseudo_my_req->end_req = hash_end_req;
 	pseudo_my_req->params = (void*)params;
 	return pseudo_my_req;

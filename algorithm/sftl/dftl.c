@@ -197,7 +197,7 @@ uint32_t demand_create(lower_info *li, algorithm *algo){
 
     /* Cache control & Init */
 #if S_FTL
-	free_cache_size = ceil(PAGESIZE * 4006 * 0.2);
+	free_cache_size = ceil(PAGESIZE * 4006 * 0.235);
 	total_cache_size = free_cache_size;
 	check_size = PAGESIZE * 0.8;
 	global_gc_flag = 0;
@@ -417,7 +417,7 @@ void demand_destroy(lower_info *li, algorithm *algo){
 
     printf("WAF: %.2f\n\n", (float)(data_r+dirty_evict_on_write)/data_r);
 
-    cache_mapped_size();
+    //cache_mapped_size();
     printf("\ncache_mapping_size : %d\n",total_cache_size - free_cache_size);
     printf("free_cache_size      : %d\n",free_cache_size);
     printf("max_cache_entry      : %d\n",max_cache_entry);
@@ -517,8 +517,8 @@ static uint32_t demand_cache_eviction(request *const req, char req_t) {
     checker->read = 0;
     checker->t_ppa = t_ppa;
     req->params = (void *)checker;
-    if (req_t == 'R') {
-	cache_miss_on_read++;
+	if (req_t == 'R') {
+		cache_miss_on_read++;
 #if REAL_BENCH_SET
 	if(req->mark)
 		real_cache_r_miss++;

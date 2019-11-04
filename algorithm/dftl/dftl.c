@@ -121,6 +121,12 @@ double real_t_miss_ratio;
 double real_r_miss_ratio;
 double real_w_miss_ratio;
 
+
+bool read_flag;
+int32_t flag_read;
+int32_t flag_m_read;
+
+
 #else
 //define bench.c
 extern int32_t bench_write;
@@ -172,7 +178,7 @@ uint32_t demand_create(lower_info *li, algorithm *algo){
     num_page  = num_block * _PPB;
 */
     p_p_b           = _PPS;
-    num_tblock      = ((num_block / EPP) + ((num_block % EPP != 0) ? 1 : 0)) * 2;
+    num_tblock      = ((num_block / EPP) + ((num_block % EPP != 0) ? 1 : 0)) * 4;
     num_tpage       = num_tblock * p_p_b;
     num_dblock      = num_block - num_tblock - 2;
     num_dpage       = num_dblock * p_p_b;
@@ -191,7 +197,7 @@ uint32_t demand_create(lower_info *li, algorithm *algo){
     //num_max_cache = max_cache_entry / 50; // 2%
     
     //num_max_cache = 128;  //12.5% of Page_mapping
-    num_max_cache = ceil(4096*0.18); 
+    num_max_cache = ceil(4096*0.235); 
     //num_max_cache = ceil(1024 * 0.35);
     real_max_cache = num_max_cache;
 
@@ -316,20 +322,15 @@ void demand_destroy(lower_info *li, algorithm *algo){
     total_cnt = write_cnt + read_cnt;
     r_cnt     = read_cnt;
     w_cnt     = write_cnt;
-#if FILEBENCH_SET
-	real_total_cnt = total_cnt;
-	real_w_cnt = write_cnt;
-	real_r_cnt = read_cnt;
-#endif
 
-    real_total_cnt = real_w_cnt + real_r_cnt;
+	real_total_cnt = real_w_cnt + real_r_cnt;
     real_t_miss_ratio = (double) (real_cache_r_miss + real_cache_w_miss) / real_total_cnt * 100;
     real_r_miss_ratio = (double) real_cache_r_miss / real_r_cnt * 100;
     real_w_miss_ratio = (double) real_cache_w_miss / real_w_cnt * 100;
 
     total_miss_ratio = (double) (cache_miss_on_read+cache_miss_on_write) / total_cnt * 100;
-    read_miss_ratio  = (double) cache_miss_on_read / read_cnt * 100;
-    write_miss_ratio = (double) cache_miss_on_write / write_cnt * 100;
+    read_miss_ratio  = (double) (cache_miss_on_read) / read_cnt * 100;
+    write_miss_ratio = (double) (cache_miss_on_write) / write_cnt * 100;
 
     printf("real_t_cnt        : %d\n",real_total_cnt);
     printf("real_r_cnt        : %d\n",real_r_cnt);
@@ -413,7 +414,7 @@ static uint32_t demand_cache_update(request *const req, char req_t) {
         if (c_table->clean_ptr) {
             lru_update(c_lru, c_table->clean_ptr);
         }
-        if (c_table->queue_tpr) {
+        if (c_table->queue_ptr) {
             lru_update(lru, c_table->queue_ptr);
         }
 #else
@@ -496,7 +497,8 @@ static uint32_t demand_cache_eviction(request *const req, char req_t) {
     req->params = (void *)checker;
 
     if (req_t == 'R') {
-	cache_miss_on_read++;
+		cache_miss_on_read++;
+
 #if REAL_BENCH_SET
 	if(req->mark)
 		real_cache_r_miss++;
@@ -685,7 +687,8 @@ static uint32_t __demand_get(request *const req){
 #if W_BUFF
     snode *temp;
 #endif
-
+	
+	
     bench_algo_start(req);
     lpa = req->key;
     if(lpa > RANGE + 1){ // range check

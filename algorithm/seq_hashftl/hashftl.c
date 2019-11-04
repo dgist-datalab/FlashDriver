@@ -1,0 +1,343 @@
+#include "hashftl.h"
+
+algorithm __hashftl = {
+	.create  = hash_create,
+	.destroy = hash_destroy,
+	.read	 = hash_read,
+	.write   = hash_write,
+	.remove  = NULL
+};
+
+
+BM_T *bm;
+Block *reserved_b;
+H_OOB *hash_oob;
+
+Block **shared_block;
+
+h_table *p_table;
+v_table *g_table;
+
+int32_t write_cnt;
+int32_t read_cnt;
+int32_t gc_write;
+int32_t gc_read;
+int32_t block_erase_cnt;
+int32_t not_found_cnt;
+
+uint32_t lnb;
+uint32_t lnp;
+int num_op_blocks;
+int blocks_per_segment;
+int max_segment;
+volatile int data_gc_poll;
+
+#if W_BUFF
+skiplist *write_buffer;
+uint64_t max_write_buf;
+uint32_t buf_idx;
+struct prefetch_struct *prefetcher;
+#endif
+
+int nob;
+int ppb;
+int nop;
+
+
+
+
+
+uint32_t hash_create(lower_info *li, algorithm *algo){
+
+	int s_size = 4;
+	algo->li = li;
+
+
+	nob = _NOB;
+	ppb = _PPB * s_size;
+	lnp = (GIGAUNIT*G) / PAGESIZE;
+	lnb = (GIGAUNIT*G) / (ppb * PAGESIZE);
+
+	nop = nob * ppb;
+
+	printf("------------------- Hash-based FTL ------------------\n");
+
+	//Setup mapping table;
+	p_table = (h_table *)malloc(sizeof(h_table) * lnp);
+	g_table = (v_table *)malloc(sizeof(v_table) * lnb);
+	hash_oob = (H_OOB *)malloc(sizeof(H_OOB) * nop);
+	
+	for(int i = 0 ; i < lnb; i++){
+		g_table[i].p_block = NULL;
+		g_table[i].share = 0;
+		g_table[i].segment_idx = -1;
+	}
+	for(int i = 0 ; i < lnp; i++){
+		p_table[i].ppid = -1;
+		p_table[i].share = 0;
+	}
+	num_op_blocks = nob - lnb - 1;
+	//num_op_blocks = nob - lnb;
+//	blocks_per_segment = ceil((lnb/num_op_blocks))+1;
+//	max_segment = lnb/blocks_per_segment + 1;
+	
+//	shared_block = (Block **)malloc(sizeof(Block *) * num_op_blocks);
+
+	shared_block = (Block **)malloc(sizeof(Block *) * num_op_blocks);
+
+#if W_BUFF
+	write_buffer = skiplist_init();
+	max_write_buf = 1024;
+	prefetcher = (struct prefetch_struct *)malloc(sizeof(struct prefetch_struct) * max_write_buf);
+	for(size_t i = 0 ; i < max_write_buf; i++){
+		prefetcher[i].ppa = 0;
+		prefetcher[i].sn = NULL;
+	}
+#endif
+
+	
+	printf("Total Num op blocks : %d\n", num_op_blocks);
+//	printf("Blocks per segment : %d\n",blocks_per_segment);
+//	printf("Max segment count : %d\n",max_segment);
+	printf("Total logical num of pages  : %d\n",lnp);
+	printf("Total logical superblock num of blocks : %d\n",lnb); 
+	printf("Total Physical num of blocks : %d\n",nob);
+	printf("Page per block : %d\n",ppb);
+
+	bm = BM_Init(nob, ppb, 0, 0);
+	//Virtual to Physical block mapping
+	for(int i = 0 ; i < lnb; i++){
+		g_table[i].p_block = &bm->barray[i];
+	}
+
+	//Set shared blocks
+	int idx=0;
+	int r_cnt = 0;
+	
+	for(int i = lnb; i < nob-1; i++){		
+		shared_block[idx++] = &bm->barray[i];
+		r_cnt++;
+	}
+	printf("r_cnt : %d\n",r_cnt);
+	reserved_b = &bm->barray[nob-1];
+	
+	/*	
+	for(int i = 0 ; i < max_segment; i++){
+		idx = lnb + i;
+		shared_block[i] = &bm->block[idx];
+	}
+	//Set queue for reserved blocks
+	
+	for(int i = idx+1; i < nob; i++){
+		enqueue(bm->free_b, &bm->block[i]);
+		r_cnt++;	
+	}
+	
+	printf("remain block : %d\n",r_cnt);
+	*/
+
+	
+	return 1;
+
+	
+
+}
+
+
+void hash_destroy(lower_info *li, algorithm *algo){
+	double memory;
+	printf("--------- Benchmark Result ---------\n\n");
+    printf("Total request  I/O count : %d\n",write_cnt+read_cnt);
+    printf("Total write    I/O count : %d\n",write_cnt);
+    printf("Total read     I/O count : %d\n",read_cnt);
+    printf("Total GC write I/O count : %d\n",gc_write);
+    printf("Total GC read  I/O count : %d\n",gc_read);
+	printf("Total Not found count    : %d\n",not_found_cnt);
+	printf("Total erase count        : %d\n",block_erase_cnt);
+	if(write_cnt != 0)
+		printf("Total WAF  : %.2lf\n",(float) (write_cnt+gc_write) / write_cnt);
+
+	memory = (double) ((lnp * 10)/8 + (lnb * 4));
+	printf("Mapping memory Requirement (MB) : %.2lf\n",memory/1024/1024);
+
+	free(p_table);
+	free(g_table);
+	free(shared_block);
+
+	free(hash_oob);
+	BM_Free(bm);
+
+	return ;
+}
+
+uint32_t hash_write(request* const req){
+
+	Block *block;
+	uint32_t pba, ppa;
+	int16_t p_idx;
+	uint32_t flush_lba;
+
+	uint32_t lba = req->key;
+	algo_req *my_req;
+	snode *temp;
+	static bool is_flush = false;
+
+	if(write_buffer->size == max_write_buf){
+		for(size_t i = 0 ; i < max_write_buf; i++){
+			temp = prefetcher[i].sn;
+			flush_lba = temp->key;
+			ppa = ppa_alloc(flush_lba);			
+			my_req = assign_pseudo_req(DATAW, temp->value, NULL);
+			__hashftl.li->write(ppa, PAGESIZE, req->value, ASYNC, my_req);
+		
+			p_idx = ppa % ppb;
+			p_table[flush_lba].ppid = p_idx;
+			BM_InvalidatePage(bm, ppa);
+			hash_oob[ppa].lba = flush_lba;
+
+
+
+			
+			temp->value = NULL;
+		}
+		for(size_t i = 0 ; i < max_write_buf; i++){
+			prefetcher[i].ppa = 0;
+			prefetcher[i].sn = NULL;
+		}
+		buf_idx = 0;
+		skiplist_free(write_buffer);
+		write_buffer = skiplist_init();
+
+		__hashftl.li->lower_flying_req_wait();
+		is_flush=true;
+	}
+
+
+	temp = skiplist_insert(write_buffer, lba, req->value, true);
+
+	if(write_buffer->size == buf_idx+1){
+		prefetcher[buf_idx++].sn = temp;
+	}
+
+	req->value = NULL;
+	req->end_req(req);
+
+
+//	pba = ppa / _PPB;
+//	block = &bm->block[pba];
+
+
+	write_cnt++;
+	return 1;
+}
+
+
+uint32_t hash_read(request* const req){
+	Block *block;
+	int16_t p_idx;
+	int32_t virtual_idx;
+	int32_t segment_idx;
+	uint64_t h;
+
+	uint32_t lba = req->key;
+	algo_req *my_req;
+	int8_t share = p_table[lba].share;
+#if W_BUFF
+	snode *temp;
+#endif
+
+
+
+	uint32_t check_ppa;
+
+	h = get_hashing(lba);
+	virtual_idx = h % lnb;
+	segment_idx = h % num_op_blocks;
+	if(share == 0){
+		block = g_table[virtual_idx].p_block;
+	}else if (share == 1){
+		block = shared_block[segment_idx];
+	}
+	p_idx = p_table[lba].ppid;
+	if((temp = skiplist_find(write_buffer, lba))){
+		memcpy(req->value->value, temp->value->value, PAGESIZE);
+		req->type_ftl = 0;
+		req->type_lower = 0;
+		req->end_req(req);
+		return 1;
+	}
+
+
+	
+	if(p_idx == -1){
+		printf("여기 ..?\n");
+		return 1;
+	}
+	
+
+	my_req = assign_pseudo_req(DATAR, NULL, req);
+
+	check_ppa = (block->PBA * ppb) + p_idx;
+	if(hash_oob[check_ppa].lba != lba){
+		printf("Page offset : %d\n",p_idx);
+		printf("ppa allocation error!\n");
+		exit(0);
+	}
+
+	__hashftl.li->read(check_ppa, PAGESIZE, req->value, ASYNC, my_req);
+
+
+
+	read_cnt++;
+	return 1;
+}
+
+
+void *hash_end_req(algo_req *input){
+    hash_params *params = (hash_params *)input->params;
+    value_set *temp_set = params->value;
+    request *res = input->parents;
+
+    switch(params->type){
+        case DATAR:
+            if(res){
+                res->end_req(res);
+            }
+            break;
+        case DATAW:
+#if W_BUFF
+			inf_free_valueset(temp_set, FS_MALLOC_W);
+#endif
+            if(res){
+                res->end_req(res);
+            }
+            break;
+        case GCDR:
+            gc_read++;
+            data_gc_poll++;
+            break;
+        case GCDW:
+            gc_write++;
+            inf_free_valueset(temp_set,FS_MALLOC_W);
+            break;
+
+    }
+    free(params);
+    free(input);
+    return NULL;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
