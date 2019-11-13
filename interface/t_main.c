@@ -12,8 +12,8 @@
 #include "../bench/bench.h"
 #include "../bench/measurement.h"
 #include "interface.h"
-#define LOAD_FILE YCSB_LOAD_16
-#define RUN_FILE  YCSB_RUN_16
+#define LOAD_FILE TPC_C_W_16
+#define RUN_FILE  TPC_C_BENCH_16
 
 #define LOAD_CYCLE 1
 #define RUN_CYCLE 1

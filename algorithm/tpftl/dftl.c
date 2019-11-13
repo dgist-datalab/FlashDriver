@@ -366,7 +366,13 @@ void demand_destroy(lower_info *li, algorithm *algo){
     printf("read_miss_cnt        : %d\n",cache_miss_on_read);
     printf("write_request_cnt    : %d\n",w_cnt);
     printf("wrtie_miss_cnt       : %d\n",cache_miss_on_write);
-    
+	printf("data gc write        : %d\n",dgc_w);
+	printf("data gc read	     : %d\n",dgc_r);
+	printf("translation gc write : %d\n",tgc_w);
+	printf("translation gc read  : %d\n",tgc_r);
+	printf("data_w : %d\n",data_w);
+	printf("data_r : %d\n",data_r);
+
     printf("not_found_cnt        : %d\n",not_found_cnt);
 
     printf("total_miss_ratio (%) : %.2lf%\n",total_miss_ratio);
@@ -396,7 +402,7 @@ void demand_destroy(lower_info *li, algorithm *algo){
 
     printf("cache_mapped_size = %d\n",total_cache_size-free_cache_size);
     printf("free_cache_size   = %d\n",free_cache_size);
-    cached_entries();
+//    cached_entries();
 
 
 
@@ -520,28 +526,28 @@ static uint32_t demand_cache_eviction(request *const req, char req_t) {
         }
     }
 
-    if (t_ppa != -1) {
-        c_table->flying = true;
-	if(c_table->evic_flag){
-		c_table->evic_flag = 0;
-	}else{
-		c_table->flying_mapping_size = ENTRY_SIZE;
-		free_cache_size -= c_table->flying_mapping_size;
+	if (t_ppa != -1) {
+		c_table->flying = true;
+		if(c_table->evic_flag){
+			c_table->evic_flag = 0;
+		}else{
+			c_table->flying_mapping_size = ENTRY_SIZE;
+			free_cache_size -= c_table->flying_mapping_size;
 
+		}
+
+		dummy_vs = inf_get_valueset(NULL, FS_MALLOC_R, PAGESIZE);
+		temp_req = assign_pseudo_req(MAPPING_R, dummy_vs, req);
+
+		//bench_algo_end(req);
+		__demand.li->read(t_ppa, PAGESIZE, dummy_vs, ASYNC, temp_req);
+
+		return 1;
 	}
 
-        dummy_vs = inf_get_valueset(NULL, FS_MALLOC_R, PAGESIZE);
-        temp_req = assign_pseudo_req(MAPPING_R, dummy_vs, req);
+	// Case of initial state (t_ppa == -1)
+	// Read(get) method never enter here
 
-        //bench_algo_end(req);
-        __demand.li->read(t_ppa, PAGESIZE, dummy_vs, ASYNC, temp_req);
-
-        return 1;
-    }
-
-    // Case of initial state (t_ppa == -1)
-    // Read(get) method never enter here
-    
     c_table->p_table   = mem_arr[D_IDX].mem_p;
     c_table->queue_ptr = lru_push(lru, (void*)c_table);
     c_table->state     = DIRTY;
@@ -847,8 +853,8 @@ static uint32_t __demand_get(request *const req){
     }
     
     if(ppa != p_table[P_IDX].ppa){
-	    printf("ppa allocation error!\n");
-	    exit(0);
+	   // printf("ppa allocation error!\n");
+	    //exit(0);
     }
     
     if(free_cache_size < 0){
@@ -1588,7 +1594,6 @@ void *demand_end_req(algo_req* input){
             break;
         case DGC_W:
             dgc_w++;
-
             inf_free_valueset(temp_v, FS_MALLOC_W);
 #if GC_POLL
             data_gc_poll++;

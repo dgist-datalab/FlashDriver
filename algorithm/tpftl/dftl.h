@@ -41,7 +41,7 @@
 #define DIRTY 1
 
 #if TPFTL
-#define ENTRY_SIZE 12       //table idx, ppa, cnt, pointer(lru_pointer) 
+#define ENTRY_SIZE 9       //table idx, ppa, cnt, pointer(lru_pointer) 
 //#define ENTRY_SIZE 8
 #define MAX_CNT    63
 #define PF_MAX     32

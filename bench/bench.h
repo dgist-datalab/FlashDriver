@@ -31,8 +31,6 @@
 //YCSB bench setting
 #define YCSB_LOAD_16   "/home/yumin/real_trace/test/t2_load_16.out"
 #define YCSB_RUN_16    "/home/yumin/real_trace/test/t2_run_16.out"
-
-
 #define YCSB_LOAD_32   "/home/yumin/real_trace/ycsb_32/ycsb_load_32a.out"
 #define YCSB_RUN_32    "/home/yumin/real_trace/ycsb_32/ycsb_run_32a.out"
 
@@ -43,8 +41,6 @@
 //Sysbench setting with mysql
 #define SYS_LOAD_16		"/home/yumin/real_trace/sysbench_16/f2fs_load_16.out"
 #define SYS_RUN_16		"/home/yumin/real_trace/sysbench_16/f2fs_run_16.out"
-
-
 
 //Filebench
 

@@ -84,7 +84,7 @@ int32_t gc_w;
 int32_t gc_r;
 int32_t data_w;
 int32_t data_r;
-
+int32_t remap_write;
 
 static void print_algo_log() {
 	printf("\n");
@@ -306,6 +306,7 @@ void hash_destroy(lower_info *li, algorithm *algo){
 	printf("Total reads : %d\n", data_r);
 	printf("Total GC_W  : %d\n", gc_w);
 	printf("Total GC_R  : %d\n", gc_r);
+
 	//printf("Copyed writes: %d\n", num_copy);
 	printf("Total WAF : %.2f\n", (float) (data_w + gc_w) / data_w);
 	

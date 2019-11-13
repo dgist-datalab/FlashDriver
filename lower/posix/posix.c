@@ -66,11 +66,11 @@ void *posix_destroy(lower_info *li){
 
 	printf("TRIM\t%lu\n", li->req_type_cnt[0]);
 	printf("TR\t%lu\n", li->req_type_cnt[5]);
-	printf("TW\t%lu\n", li->req_type_cnt[6]);
+	printf("TW\t%lu\n", li->req_type_cnt[2]);
 	printf("TGCR\t%lu\n", li->req_type_cnt[7]);
 	printf("TGCW\t%lu\n", li->req_type_cnt[8]);
 	printf("DR\t%lu\n", li->req_type_cnt[1]);
-	printf("DW\t%lu\n", li->req_type_cnt[2]);
+	printf("DW\t%lu\n", li->req_type_cnt[6]);
 	printf("DGCR\t%lu\n", li->req_type_cnt[3]);
 	printf("DGCW\t%lu\n\n", li->req_type_cnt[4]);
 

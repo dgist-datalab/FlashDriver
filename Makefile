@@ -21,7 +21,7 @@ COMMONFLAGS=\
 			-DLARGEFILE64_SOURCE\
 			-DSLC\
 			-O2\
-			-fsanitize=address\
+#			-fsanitize=address\
 			-static-libasan
 #			-DWRITESYNC\
 

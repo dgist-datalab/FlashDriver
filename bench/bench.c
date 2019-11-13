@@ -22,6 +22,7 @@ void randget(KEYT,KEYT,monitor*);
 void randset(KEYT,KEYT,monitor*);
 void set_locality(KEYT,KEYT,monitor*);
 void get_locality(KEYT,KEYT,monitor*);
+void locality_rw(KEYT, KEYT, monitor*);
 
 void randrw(KEYT,KEYT,monitor*);
 void latency(KEYT,KEYT,monitor*);
@@ -146,6 +147,9 @@ void bench_make_data(){
 			break;
 		case GET_LOCALITY:
 			get_locality(start,end,_m);
+			break;
+		case LOCALITY_RW:
+			locality_rw(start,end,_m);
 			break;
 		default:
 			printf("making data failed\n");
@@ -303,7 +307,7 @@ void bench_print(){
 		bench_li_print(&_master->li[i],_m);
 #endif
 		printf("\n----summary----\n");
-		if(_m->type==RANDRW || _m->type==SEQRW){
+		if(_m->type==RANDRW || _m->type==SEQRW || _m->type==LOCALITY_RW){
 			uint64_t total_data=(PAGESIZE * _m->m_num/2)/1024;
 			double total_time2=_m->benchTime.adding.tv_sec+(double)_m->benchTime.adding.tv_usec/1000000;
 			double total_time1=_m->benchTime2.adding.tv_sec+(double)_m->benchTime2.adding.tv_usec/1000000;
@@ -724,9 +728,14 @@ void set_locality(KEYT start, KEYT end, monitor *m){
 	if(m->seq_locality > 16){
 		adding_cnt = 1;
 	}	
+	static int bench_write_cnt = 0;
 	for(KEYT i = 0; i < (m->m_num / m->seq_locality) + adding_cnt; i++){
 		cnt = m->seq_locality;
+	
 		t_key = start + rand()%(end-start);
+		while(t_key + cnt > RANGE){
+			t_key = start + rand()%(end-start);
+		}
 		while(cnt > 0){
 			m->body[idx/m->bech][idx%m->bech].key = t_key;
 			m->body[idx/m->bech][idx%m->bech].length = PAGESIZE;
@@ -736,8 +745,10 @@ void set_locality(KEYT start, KEYT end, monitor *m){
 			t_key = (t_key+1) % (end-start);
 			cnt--;
 			m->write_cnt++;
+			bench_write_cnt++;
 		}
 	}
+	printf("bench_write_cnt : %d\n",bench_write_cnt);
 	/*	
 	for(KEYT i = 0; i < m->m_num; i++)
 	{
@@ -755,9 +766,16 @@ void get_locality(KEYT start, KEYT end, monitor *m){
 	if(m->seq_locality == 16){
 		adding_cnt = 1;
 	}	
+
+	static int bench_read_cnt = 0;
+
 	for(KEYT i = 0; i < (m->m_num / m->seq_locality) + adding_cnt; i++){
 		cnt = m->seq_locality;
 		t_key = start + rand()%(end-start);
+	
+		while(t_key + cnt > RANGE){
+			t_key = start + rand()%(end-start);
+		}
 		while(cnt > 0){
 			m->body[idx/m->bech][idx%m->bech].key = t_key;
 			m->body[idx/m->bech][idx%m->bech].length = PAGESIZE;
@@ -767,8 +785,10 @@ void get_locality(KEYT start, KEYT end, monitor *m){
 			t_key = (t_key+1) % (end-start);
 			cnt--;
 			m->read_cnt++;
+			bench_read_cnt++;
 		}
 	}
+	printf("bench_read_cnt : %d\n", bench_read_cnt);
 	/*	
 	for(KEYT i = 0; i < m->m_num; i++)
 	{
@@ -777,6 +797,46 @@ void get_locality(KEYT start, KEYT end, monitor *m){
 	exit(0);
 */
 }
+void locality_rw(KEYT start, KEYT end, monitor *m){
+	printf("making locality rw bench : %d\n",m->seq_locality);
+	KEYT t_key;
+	KEYT idx = 0;
+	KEYT cnt;
+	KEYT adding_cnt = 0;
+	if(m->seq_locality == 16){
+		adding_cnt = 1;
+	}
+	for(KEYT i = 0 ; i < (m->m_num / m->seq_locality)/2 + adding_cnt; i++){
+		cnt = m->seq_locality;
+		t_key = start + rand()%(end-start);
+		while(t_key + cnt > RANGE){
+			t_key = start + rand() % (end-start);
+		}
+		while(cnt > 0){
+			m->body[idx/m->bech][idx%m->bech].key = t_key;
+			bitmap_set(m->body[idx/m->bech][idx%m->bech].key);
+			m->body[idx/m->bech][idx%m->bech].type = FS_SET_T;
+			m->body[idx/m->bech][idx%m->bech].length=PAGESIZE;
+			m->body[idx/m->bech][idx%m->bech].mark = m->mark;
+			m->write_cnt++;
+			m->body[(idx+m->m_num/2)/m->bech][(idx+m->m_num/2)%m->bech].key=m->body[idx/m->bech][idx%m->bech].key;
+			m->body[(idx+m->m_num/2)/m->bech][(idx+m->m_num/2)%m->bech].type=FS_GET_T;
+			m->body[(idx+m->m_num/2)/m->bech][(idx+m->m_num/2)%m->bech].length=PAGESIZE;
+			m->body[(idx+m->m_num/2)/m->bech][(idx+m->m_num/2)%m->bech].mark=m->mark;
+			m->read_cnt++;
+			idx++;
+			t_key = (t_key+1) % (end-start);
+			cnt--;
+		}
+	}
+
+	printf("Compelete locality rw bench!\n");
+
+	
+}
+
+
+
 void randrw(KEYT start, KEYT end, monitor *m){
 	printf("making rand Set and Get bench!\n");
 	for(KEYT i=0; i<m->m_num/2; i++){

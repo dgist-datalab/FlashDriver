@@ -41,10 +41,10 @@
 //#define TOTALSIZE (GIGAUNIT * G)
 #define REALSIZE (512L*G)
 #define DEVSIZE (64L * G)
-#define PAGESIZE (8*K)
+#define PAGESIZE (4*K)
 
 #define _PPB (1<<7)
-#define BPS (4)
+#define BPS (1)
 
 #define _PPS (_PPB * BPS)
 #define A_SIZE 4
@@ -100,7 +100,7 @@
 #define PTR char*
 #define ASYNC 1
 #define QSIZE (1024)
-#define QDEPTH (128)
+#define QDEPTH (1)
 #define THREADSIZE (1)
 
 #define THPOOL

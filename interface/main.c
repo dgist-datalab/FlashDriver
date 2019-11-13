@@ -38,16 +38,17 @@ int main(int argc,char* argv[]){
 	char t_value[PAGESIZE];
 	memset(t_value,'x',PAGESIZE);
 
+	bench_add(LOCALITY_RW,0,RANGE,RANGE*2,2);
 //	bench_add(SEQSET,0,RANGE,RANGE,0);
-//	bench_add(RANDSET,0,RANGE,RANGE,0);
+//	bench_add(RANDSET,0,RANGE,RANGE*5,0);
 //	bench_add(RANDGET,0,RANGE,RANGE,0);
 //	bench_add(RANDSET,0,RANGE*0.7,RANGE*0.7,0);
-	bench_add(RANDRW,0,RANGE,RANGE,0);
+//	bench_add(RANDRW,0,RANGE,RANGE*2,0);
 	
 //	bench_add(RANDSET,0,RANGE,RANGE,0);	
 //	bench_add(RANDSET,0,RANGE,RANGE,0);	
 //	bench_add(RANDGET,0,RANGE,RANGE,0);
-	//	bench_add(SET_LOCALITY,0,RANGE,RANGE,4);
+//	bench_add(SET_LOCALITY,0,RANGE,RANGE,8);
 //	bench_add(RANDSET,0,RANGE,RANGE,0);
 //	bench_add(GET_LOCALITY,0,RANGE,RANGE,8);
 //	bench_add(SEQSET,0,RANGE,RANGE);

@@ -15,6 +15,7 @@
 #include "../../include/types.h"
 #include "../../include/data_struct/redblack.h"
 #include "../../include/data_struct/demand_hash.h"
+#include "../../interface/bb_checker.h"
 
 #ifdef W_BUFF
 #include "../Lsmtree/skiplist.h"

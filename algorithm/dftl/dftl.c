@@ -203,8 +203,8 @@ uint32_t demand_create(lower_info *li, algorithm *algo){
 
     num_caching = 0;
     //max_write_buf = 512;
-    //max_write_buf = 1024;
     max_write_buf = 1;
+//    max_write_buf = 1;
 #if C_CACHE
     max_clean_cache = num_max_cache / 2; // 50 : 50
     num_max_cache -= max_clean_cache;
@@ -881,7 +881,6 @@ static uint32_t __demand_set(request *const req){
     if (write_buffer->size == ppa_idx+1) {
         ppa = ppa_prefetch[ppa_idx].ppa;
         temp->ppa = ppa;
-
         ppa_prefetch[ppa_idx++].sn = temp;
 
         // if there is previous data with same lpa, then invalidate it

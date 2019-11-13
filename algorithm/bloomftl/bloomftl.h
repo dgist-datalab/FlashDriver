@@ -18,6 +18,7 @@
 #include "../../include/dl_sync.h"
 #include "../../include/ftl_settings.h"
 #include "../blockmanager/BM.h"
+#include "../../interface/bb_checker.h"
 
 #ifdef W_BUFF
 #include "../Lsmtree/skiplist.h"
@@ -265,7 +266,9 @@ static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
     int symb_arr_sz = end_byte - ((start*length) / 8) + 1;
     uint8_t chunk_sz = length > end_bit + 1 ? end_bit + 1 : length;
     bf_bits = bf->base_bf[p_idx].bf_bits;
-    h = hashfunction(hashed_key) % bf_bits;
+
+	h = hashed_key % bf_bits;
+//	h = hashfunction(hashed_key) % bf_bits;
 
     // 1
     if(end_bit == 7) {

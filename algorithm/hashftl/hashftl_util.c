@@ -435,6 +435,9 @@ int32_t remap_sec_to_pri(int32_t v_pba, int32_t* cal_ppid){
 					
 					map_for_remap(lpa, ppa, hid, cal_ppid, i);
 					__hashftl.li->write(ppa, PAGESIZE, temp_value_set,1,assign_pseudo_req(GC_W, temp_value_set, NULL));
+					remap_write++;
+					
+					
 					hash_OOB[prev_ppa].lpa = -1;
 					temp_value_set = NULL;
 					temp_set = NULL;

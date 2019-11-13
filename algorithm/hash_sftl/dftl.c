@@ -199,7 +199,7 @@ uint32_t demand_create(lower_info *li, algorithm *algo){
 
     /* Cache control & Init */
 #if S_FTL
-	free_cache_size = ceil(PAGESIZE * 1024 * 0.125);
+	free_cache_size = ceil(PAGESIZE * 4096 * 0.235);
 	total_cache_size = free_cache_size;
 	check_size = PAGESIZE * 0.8;
 	global_gc_flag = 0;
@@ -223,8 +223,8 @@ uint32_t demand_create(lower_info *li, algorithm *algo){
 
     num_caching = 0;
     //max_write_buf = 512;
-	max_write_buf = 1024;
-//	max_write_buf = 1;
+	//max_write_buf = 1024;
+	max_write_buf = 1;
 #if C_CACHE
     max_clean_cache = num_max_cache / 2; // 50 : 50
     num_max_cache -= max_clean_cache;

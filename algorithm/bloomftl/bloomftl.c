@@ -445,7 +445,6 @@ uint32_t bloom_write(request* const req){
 			temp = prefetcher[i].sn;
 			flush_lba = temp->key;
 			ppa = ppa_alloc(flush_lba);
-
 			my_req = assign_pseudo_req(DATAW, temp->value, NULL);
 			__bloomftl.li->write(ppa, PAGESIZE, temp->value, ASYNC, my_req);
 			temp->value = NULL;
@@ -578,6 +577,11 @@ uint32_t bloom_read(request* const req){
 #endif
 
 	ppa = table_lookup(lba, 1);
+//	uint32_t check_ppa = bb_checker_fix_ppa(ppa) % 64;
+//	printf("check_ppa : %d\n",check_ppa);
+
+	
+	
 	__bloomftl.li->read(ppa, PAGESIZE, req->value, ASYNC, my_req);
 	
 	return 1;

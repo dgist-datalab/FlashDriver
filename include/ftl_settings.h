@@ -6,7 +6,7 @@
 
 // sftl & tpftl flag
 #define S_FTL 0
-#define TPFTL 0
+#define TPFTL 1
 #define BFTL  0
 #define ZYNQ_ON 0
 

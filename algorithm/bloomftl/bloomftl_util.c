@@ -236,8 +236,10 @@ uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
 
 	sb[superblk].bf_page[s_p_idx].s_idx = bf_idx;
 	
-	set_bf(hashkey + s_p_idx, superblk, s_p_idx);
+	//set_bf(hashkey + s_p_idx, superblk, s_p_idx);
 	
+	set_bf(hashkey,superblk,s_p_idx);
+
 	b_table[superblk].bf_num++;
 
 	lba_bf[lba] = 1;
@@ -301,7 +303,7 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 			block    = b_table[superblk].b_bucket[b_idx];
 			s_p_idx  = ((block->PBA * ppb) + b_offset) % pps;
 			ppa      = ((block->PBA * ppb) + b_offset);
-			if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
+			if(get_bf(hashkey, superblk, s_p_idx)){
 				oob = bloom_oob[ppa].lba;
 				if(oob == lba){
 					found_cnt++;
@@ -365,7 +367,7 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len, bool flag)
 	s_p_idx  = ((block->PBA * ppb) + b_offset) % pps;
 	ppa      = (block->PBA * ppb) + b_offset;
 	/*CASE 1 : If lba is head of coalesced lba */
-	if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
+	if(get_bf(hashkey, superblk, s_p_idx)){
 		oob = bloom_oob[ppa].lba;
 		if(oob == lba){
 			if(flag)
@@ -395,7 +397,7 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len, bool flag)
 
 	for(int i = 1; i < c_range+1; i++){
 		hashkey = hashing_key(lba-i);
-		if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
+		if(get_bf(hashkey, superblk, s_p_idx)){
 			check_offset = f_offset + i;
 			if(check_offset >= pps)
 				continue;
@@ -548,7 +550,8 @@ void set_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx){
 
 
     bf_bits = bf->base_bf[p_idx].bf_bits;
-    h = hashfunction(hashed_key) % bf_bits;
+	h = hashed_key % bf_bits;
+	// h = hashfunction(hashed_key) % bf_bits;
 
 
     if(end_bit == 7){

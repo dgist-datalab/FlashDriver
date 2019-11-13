@@ -114,6 +114,8 @@ extern int32_t gc_count;
 extern int32_t re_gc_count;
 extern int32_t re_page_count;
 
+extern int32_t remap_write;
+
 extern int32_t gc_val;
 extern int32_t re_number;
 extern int32_t gc_pri;
