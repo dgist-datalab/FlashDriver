@@ -11,7 +11,7 @@ pl_body *plbody_init(mem_seg *data, uint32_t *map_ppa_list,uint32_t list_size){
 	return res;
 }
 
-void new_page_set(pl_body *p, bool iswrite){
+static void new_page_set(pl_body *p, bool iswrite){
 	p->now_page=p->data_ptr[convert_ppa(p->map_ppa_list[p->pidx++])].storage;
 	if(iswrite && !p->now_page){
 		p->now_page=(char*)malloc(PAGESIZE);

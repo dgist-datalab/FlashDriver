@@ -21,7 +21,7 @@ typedef struct __hash{
 
 __hash* __hash_init(uint32_t size);
 int __hash_insert(__hash *h,KEYT key,void *data, void* inter_ptr, void **updated);
-void* __hash_delete_by_key(__hash *h,uint32_t key);
+void* __hash_delete_by_key(__hash *h,KEYT key);
 void* __hash_delete_by_idx(__hash *h,uint32_t idx);
 void* __hash_find_data(__hash *h, KEYT key);
 __hash_node* __hash_find_node(__hash *h,KEYT key);

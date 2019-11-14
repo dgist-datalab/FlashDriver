@@ -6,7 +6,9 @@
 #include <stdlib.h>
 #include<stdio.h>
 #include <string.h>
-
+#ifndef __cplusplus
+typedef enum{false,true} bool;
+#endif
 /*
 #define free(a) \
 	do{\
@@ -169,8 +171,6 @@ static inline bool KEYVALCHECK(KEYT a){
 //#define BUSE_MEASURE
 //#define BUSE_ASYNC 0
 
-#ifndef __GNUG__
-typedef enum{false,true} bool;
-#endif
+
 
 #endif

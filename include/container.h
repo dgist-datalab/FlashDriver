@@ -178,7 +178,7 @@ typedef struct masterblock{
 
 typedef struct mastersegment{
 	uint32_t seg_idx;
-	__block* blocks[BPS];
+	__block* blocks[BPS+1];
 	uint16_t now;
 	uint16_t max;
 	uint32_t used_page_num;
@@ -187,7 +187,7 @@ typedef struct mastersegment{
 }__segment;
 
 typedef struct ghostsegment{ //for gc
-	__block* blocks[BPS];
+	__block* blocks[BPS+1];
 	uint16_t now;
 	uint16_t max;
 	uint32_t invalidate_number;

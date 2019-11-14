@@ -131,7 +131,7 @@ uint32_t __lsm_range_get_after_header(request *req){
 		level_mapping_cnt[i]=1;
 	}
 
-	keyset min={0,0}, temp;
+	keyset min={}, temp;
 	bool no_memtable=false;
 	for(int j=0;j<req->num; j++){
 		int target=0;
@@ -245,7 +245,9 @@ uint32_t __lsm_range_get(request *const req){
 			req->multi_value[i]=inf_get_valueset(NULL,FS_GET_T,PAGESIZE);
 		}
 	}
-	uint32_t read_header[LSM.LEVELN*RANGEGETNUM]={0,};
+	uint32_t *read_header;
+	read_header=calloc(LSM.LEVELN*RANGEGETNUM,sizeof(uint32_t));
+	
 	/*req all headers read*/
 	params=(lsm_range_params*)malloc(sizeof(lsm_range_params));
 	fdriver_lock_init(&params->global_lock,1);
@@ -304,5 +306,6 @@ uint32_t __lsm_range_get(request *const req){
 			LSM.li->read(read_header[i],PAGESIZE,req->multi_value[i],ASYNC,ar_req);
 		}
 	}
+	free(read_header);
 	return 1;
 }

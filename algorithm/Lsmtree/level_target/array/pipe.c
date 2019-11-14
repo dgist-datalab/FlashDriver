@@ -22,7 +22,7 @@ p_body *pbody_init(char **data,uint32_t size, pl_run *pl_datas, bool read_from_r
 
 bool print_test;
 int lock_cnt=0;
-void new_page_set(p_body *p, bool iswrite){
+static void new_page_set(p_body *p, bool iswrite){
 	if(p->read_from_run){
 		if(fdriver_try_lock(p->pl_datas[p->pidx].lock)==-1){
 			fdriver_lock(p->pl_datas[p->pidx].lock);

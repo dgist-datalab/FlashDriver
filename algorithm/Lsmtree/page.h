@@ -61,7 +61,7 @@ typedef struct page_manager{
 
 
 void pm_init();
-lsm_block* lb_init(uint8_t type, uint32_t ppa);
+lsm_block* lb_init(uint8_t type);
 void lb_free(lsm_block *b);
 
 uint32_t getPPA(uint8_t type, KEYT, bool);//in DVALUE return block id;

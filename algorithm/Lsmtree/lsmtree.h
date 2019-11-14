@@ -42,6 +42,7 @@ typedef struct level level;
 typedef struct run run_t;
 typedef struct level_ops level_ops;
 typedef struct htable htable;
+typedef struct keyset keyset;
 
 enum READTYPE{
 	NOTFOUND,FOUND,CACHING,FLYING
@@ -205,7 +206,7 @@ uint32_t lsm_proc_re_q();
 uint32_t lsm_remove(request *const);
 
 uint32_t __lsm_get(request *const);
-uint8_t lsm_find_run(KEYT key, run_t **,struct keyset **, int *level, int *run);
+uint8_t lsm_find_run(KEYT key, run_t **,keyset **, int *level, int *run);
 uint32_t __lsm_range_get(request *const);
 
 void* lsm_end_req(struct algo_req*const);
