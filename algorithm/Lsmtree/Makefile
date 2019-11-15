@@ -8,13 +8,14 @@ ifeq ($(CC),cc)
 		 -Wall\
 
  ifeq ($(CC),gcc)
-  export CFLAGS_ALGO+=\
+  CFLAGS_ALGO+=\
 			   -Wno-discarded-qualifiers\
 			   -std=c99\
+			   -DLsmtree\
 
  else
-  export CFLAGS_ALGO+=\
-			   -std=c++11\
+  CFLAGS_ALGO+=\
+			   -DLsmtree\
 
  endif
 endif
@@ -68,7 +69,7 @@ TARGETMOBJ:=\
 	$(addprefix ../../object/,$(MOBJS))\
 
 
-all:set_check $(TARGETOBJ)
+all:$(TARGETOBJ) set_check
 
 DEBUG: $(TARGETDOBJ)
 
@@ -81,16 +82,16 @@ set_check:../../include/lsm_settings.h
 	$(MAKE) -C $(AL_PWD)/level_target/$(L_TARGET)
 
 .c.o :  ../../include/lsm_settings.h ../../include/settings.h
-	$(CC) $(CFLAGS_ALGO) -c $< -o $@ -lm -lpthread
+	$(CC) $(CFLAGS_ALGO) -c $< -o $@ -lm -lpthread -DLsmtree
 
 ../../object/%_d.o: %.c ../../include/lsm_settigs.h ../../include/settings.h
-	$(CC) $(CFLAGS_ALGO) -DDEBUG -c $< -o $@ -lm
+	$(CC) $(CFLAGS_ALGO) -DDEBUG -c $< -o $@ -lm -DLsmtree
 
 ../../object/%_m.o: %.c ../../include/lsm_settings.h ../../include/settings.h
-	$(CC) $(CFLAGS_ALGO) -DLEAKCHECK -c $< -o $@ -lm
+	$(CC) $(CFLAGS_ALGO) -DLEAKCHECK -c $< -o $@ -lm -DLsmtree
 
 ../../object/%.o: %.c  ../../include/lsm_settings.h ../../include/settings.h
-	$(CC) $(CFLAGS) $(CFLAGS_ALGO) -c $< -o $@ -lm
+	$(CC) $(CFLAGS) $(CFLAGS_ALGO) -c $< -o $@ -lm -DLsmtree
 
 run_test:run_array.c
 	$(CC) $(CFLAGS_ALGO) -o $@ $^

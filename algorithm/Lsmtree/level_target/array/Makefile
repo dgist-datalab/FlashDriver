@@ -15,4 +15,4 @@ test: test.c
 	gcc -g -o test test.c
 
 .c.o:
-	$(CC) $(CFLAGS_ALGO) -c $< -o $@
+	$(CC) $(CFLAGS_ALGO) -c $< -o $@ -DLsmtree

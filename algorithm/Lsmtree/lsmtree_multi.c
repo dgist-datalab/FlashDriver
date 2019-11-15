@@ -246,7 +246,7 @@ uint32_t __lsm_range_get(request *const req){
 		}
 	}
 	uint32_t *read_header;
-	read_header=calloc(LSM.LEVELN*RANGEGETNUM,sizeof(uint32_t));
+	read_header=(uint32_t *)calloc(LSM.LEVELN*RANGEGETNUM,sizeof(uint32_t));
 	
 	/*req all headers read*/
 	params=(lsm_range_params*)malloc(sizeof(lsm_range_params));

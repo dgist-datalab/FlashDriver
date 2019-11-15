@@ -1,8 +1,8 @@
-export CC=gcc
+export CC=g++
 
 TARGET_INF=interface
 TARGET_LOWER=posix_memory
-TARGET_ALGO=Lsmtree
+TARGET_ALGO=demand
 TARGET_BM=partition
 JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 
@@ -51,10 +51,8 @@ export kv_flag="true"
 #CFLAGS_ALGO+=-DCOMPACTIONLOG\
 	
 CFLAGS_ALGO+=$(COMMONFLAGS)\
-			 -D$(TARGET_ALGO)\
 
 CFLAGS_LOWER+=$(COMMONFLAGS)\
-			  -D$(TARGET_ALGO)\
 
 ifeq ($(TARGET_ALGO), lsmtree)
  CFLAGS_ALGO+=-DLSM_SKIP
@@ -71,7 +69,6 @@ endif
 CFLAGS +=\
 		 $(CFLAGS_ALGO)\
 		 -D$(TARGET_LOWER)\
-		 -D$(TARGET_ALGO)\
 		 -D$(TARGET_INF)\
 		 -D_DEFAULT_SOURCE\
 		 -D_BSD_SOURCE\
@@ -157,10 +154,34 @@ jni: libdriver.a ./jni/DriverInterface.c
 libfdsock.a:
 	cd ./include/flash_sock/ && $(MAKE) libfdsock.a && mv ./libfdsock.a ../../ && cd ../../
 
-liblsmkvd.a: $(TARGETOBJ)
+libdriver.a: $(TARGETOBJ)
 	mkdir -p object && mkdir -p data
 	cd ./blockmanager/$(TARGET_BM) && $(MAKE) && cd ../../
 	cd ./algorithm/$(TARGET_ALGO) && $(MAKE) clean && $(MAKE) && cd ../../
+	cd ./lower/$(TARGET_LOWER) && $(MAKE) && cd ../../ 
+	mv ./include/data_struct/*.o ./object/
+	mv -f ./blockmanager/*.o ./object/
+	mv ./include/utils/*.o ./object/
+	mv ./interface/*.o ./object/ && mv ./bench/*.o ./object/ && mv ./include/*.o ./object/
+	$(AR) r $(@) ./object/*
+
+
+liblsmkvd.a: $(TARGETOBJ)
+	mkdir -p object && mkdir -p data
+	cd ./blockmanager/$(TARGET_BM) && $(MAKE) && cd ../../
+	cd ./algorithm/Lsmtree && $(MAKE) clean && $(MAKE) && cd ../../
+	cd ./lower/$(TARGET_LOWER) && $(MAKE) && cd ../../ 
+	mv ./include/data_struct/*.o ./object/
+	mv -f ./blockmanager/*.o ./object/
+	mv ./include/utils/*.o ./object/
+	mv ./interface/*.o ./object/ && mv ./bench/*.o ./object/ && mv ./include/*.o ./object/
+	$(AR) r $(@) ./object/*
+
+	
+libhashkvd.a: $(TARGETOBJ)
+	mkdir -p object && mkdir -p data
+	cd ./blockmanager/$(TARGET_BM) && $(MAKE) && cd ../../
+	cd ./algorithm/demand && $(MAKE) clean && $(MAKE) && cd ../../
 	cd ./lower/$(TARGET_LOWER) && $(MAKE) && cd ../../ 
 	mv ./include/data_struct/*.o ./object/
 	mv -f ./blockmanager/*.o ./object/
@@ -193,4 +214,6 @@ clean :
 	@$(RM) *driver
 	@$(RM) bd_testcase
 	@$(RM) libdriver.so
+	@$(RM) liblsmkvd.so
+	@$(RM) libhashkvd.so
 
