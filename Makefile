@@ -2,7 +2,7 @@ export CC=g++
 
 TARGET_INF=interface
 TARGET_LOWER=posix_memory
-TARGET_ALGO=demand
+#TARGET_ALGO=demand
 TARGET_BM=partition
 JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 

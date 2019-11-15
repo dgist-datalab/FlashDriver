@@ -53,6 +53,9 @@ struct request {
 	bool isAsync;
 	void *p_req;
 	void (*p_normal_end_req)(void *);
+	uint32_t *rvlen;
+	void *pparam;
+
 	void (*p_end_req)(uint32_t,uint32_t,void*);
 	void *params;
 	void *__hash_node;

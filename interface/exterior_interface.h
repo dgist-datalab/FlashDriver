@@ -6,6 +6,6 @@ enum fd_operations_type{
 };
 
 int _fd_kvd_init(int argc, char **argv);
-int _fd_kvd_ops(uint32_t type, void *key, uint8_t keylen, void *value, uint32_t vlen, void *req, void (*end_req)(void *req));
+int _fd_kvd_ops(uint32_t type, void *key, uint8_t keylen, void *value, uint32_t vlen, uint32_t *rvlen,void *req, void (*end_req)(void *req));
 int _fd_kvd_destroy();
 #endif
