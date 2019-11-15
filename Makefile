@@ -75,12 +75,11 @@ CFLAGS +=\
 		 -D$(TARGET_INF)\
 		 -D_DEFAULT_SOURCE\
 		 -D_BSD_SOURCE\
--DBENCH\
--DCDF\
 
 SRCS +=\
 	./interface/queue.c\
 	./interface/interface.c\
+	./interface/exterior_interface.c\
 	./include/FS.c\
 	./include/slab.c\
 	./include/utils/debug_tools.c\
@@ -158,7 +157,7 @@ jni: libdriver.a ./jni/DriverInterface.c
 libfdsock.a:
 	cd ./include/flash_sock/ && $(MAKE) libfdsock.a && mv ./libfdsock.a ../../ && cd ../../
 
-libdriver.a: $(TARGETOBJ)
+liblsmkvd.a: $(TARGETOBJ)
 	mkdir -p object && mkdir -p data
 	cd ./blockmanager/$(TARGET_BM) && $(MAKE) && cd ../../
 	cd ./algorithm/$(TARGET_ALGO) && $(MAKE) clean && $(MAKE) && cd ../../

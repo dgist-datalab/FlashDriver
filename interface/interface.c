@@ -536,10 +536,10 @@ bool inf_make_req_special(const FSTYPE type, const KEYT key, char* value, int le
 	   if(flying->now==1){
 	   printf("[%d]will be sleep! type:%d\n",cnt++,type);
 	   }*/
-	cl_grap(flying);
 
 	//set sequential
 	req->seq=seq;
+	cl_grap(flying);
 #ifdef CDF
 	req->isstart=false;
 	measure_init(&req->latency_checker); //make_req_spe

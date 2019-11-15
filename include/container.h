@@ -52,20 +52,13 @@ struct request {
 	bool (*added_end_req)(struct request *const);
 	bool isAsync;
 	void *p_req;
+	void (*p_normal_end_req)(void *);
 	void (*p_end_req)(uint32_t,uint32_t,void*);
 	void *params;
 	void *__hash_node;
 	//pthread_mutex_t async_mutex;
 	fdriver_lock_t sync_lock;
 	int mark;
-
-/*s:for application req*/
-	char *target_buf;
-	uint32_t inter_offset;
-	uint32_t target_len;
-	char istophalf;
-	FSTYPE org_type;
-/*e:for application req*/
 
 	uint8_t type_ftl;
 	uint8_t type_lower;
@@ -76,8 +69,6 @@ struct request {
 	/* HASH_KVSSD */
 	void *hash_params;
 	struct request *parents;
-
-
 };
 
 struct algo_req{
