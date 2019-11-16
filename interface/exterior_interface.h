@@ -1,6 +1,6 @@
 #ifndef __H_EXT_INTERFACE_H
 #define __H_EXT_INTERFACE_H
-
+#include <stdint.h>
 enum fd_operations_type{
 	FD_KVD_SET,FD_KVD_GET,FD_KVD_DELETE
 };
