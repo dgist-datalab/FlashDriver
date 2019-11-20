@@ -2,7 +2,7 @@ export CC=g++
 
 TARGET_INF=interface
 TARGET_LOWER=posix_memory
-TARGET_ALGO=demand
+TARGET_ALGO=Lsmtree
 TARGET_BM=partition
 JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 
@@ -118,53 +118,7 @@ LIBS +=\
 #	-laio\
 	#	-ljemalloc\
 
-all: driver
-
-DEBUG: debug_driver
-
-duma_sim: duma_driver
-
-debug_driver: ./interface/main.c libdriver_d.a
-	$(CC) $(CFLAGS) -DDEBUG -o $@ $^ $(LIBS)
-
-driver: ./interface/main.c libdriver.a
-	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)
-
-bd_testcase: ./interface/mainfiles/testcase.c libdriver.a
-	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)
-
-kv_driver: ./interface/mainfiles/NET_main.c libdriver.a libfdsock.a
-	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)
-
-tc_driver: ./interface/mainfiles/trace_collect_main.c libdriver.a libfdsock.a
-	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)
-
-tr_driver: ./interface/mainfiles/Ytest_main.c libdriver.a libfdsock.a
-	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)
-
-range_driver: ./interface/range_test_main.c libdriver.a
-	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)
-
-duma_driver: ./interface/main.c libdriver.a
-	$(CC) $(CFLAGS) -o $@ $^ -lduma $(ARCH) $(LIBS)
-
-jni: libdriver.a ./jni/DriverInterface.c
-	$(CC) -fPIC -o libdriver.so -shared -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux ./object/* $(LIBS)
-	
-libfdsock.a:
-	cd ./include/flash_sock/ && $(MAKE) libfdsock.a && mv ./libfdsock.a ../../ && cd ../../
-
-libdriver.a: $(TARGETOBJ)
-	mkdir -p object && mkdir -p data
-	cd ./blockmanager/$(TARGET_BM) && $(MAKE) && cd ../../
-	cd ./algorithm/$(TARGET_ALGO) && $(MAKE) clean && $(MAKE) && cd ../../
-	cd ./lower/$(TARGET_LOWER) && $(MAKE) && cd ../../ 
-	mv ./include/data_struct/*.o ./object/
-	mv -f ./blockmanager/*.o ./object/
-	mv ./include/utils/*.o ./object/
-	mv ./interface/*.o ./object/ && mv ./bench/*.o ./object/ && mv ./include/*.o ./object/
-	$(AR) r $(@) ./object/*
-
+all: liblsmkvd.a
 
 liblsmkvd.a: $(TARGETOBJ)
 	mkdir -p object && mkdir -p data
@@ -177,23 +131,6 @@ liblsmkvd.a: $(TARGETOBJ)
 	mv ./interface/*.o ./object/ && mv ./bench/*.o ./object/ && mv ./include/*.o ./object/
 	$(AR) r $(@) ./object/*
 
-	
-libhashkvd.a: $(TARGETOBJ)
-	mkdir -p object && mkdir -p data
-	cd ./blockmanager/$(TARGET_BM) && $(MAKE) && cd ../../
-	cd ./algorithm/demand && $(MAKE) clean && $(MAKE) && cd ../../
-	cd ./lower/$(TARGET_LOWER) && $(MAKE) && cd ../../ 
-	mv ./include/data_struct/*.o ./object/
-	mv -f ./blockmanager/*.o ./object/
-	mv ./include/utils/*.o ./object/
-	mv ./interface/*.o ./object/ && mv ./bench/*.o ./object/ && mv ./include/*.o ./object/
-	$(AR) r $(@) ./object/*
-
-%_mem.o: %.c
-	$(CC) $(CFLAGS) -DLEAKCHECK -c $< -o $@ $(LIBS)
-
-%_d.o: %.c
-	$(CC) $(CFLAGS) -DDEBUG -c $< -o $@ $(LIBS)
 
 .c.o :
 	$(CC) $(CFLAGS) -c $< -o $@ $(LIBS)
@@ -202,6 +139,8 @@ submodule:libdriver.a
 	mv libdriver.a ../objects/
 
 clean :
+	cd ./algorithm/$(TARGET_ALGO) && $(MAKE) clean && cd ../../
+	cd ./lower/$(TARGET_LOWER) && $(MAKE) clean && cd ../../
 	@$(RM) ./data/*
 	@$(RM) ./object/*.o
 	@$(RM) *.a
