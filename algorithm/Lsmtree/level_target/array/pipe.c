@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "../../../../bench/bench.h"
-extern MeasureTime write_opt_time[10];
 extern lsmtree LSM;
 p_body *pbody_init(char **data,uint32_t size, pl_run *pl_datas, bool read_from_run,BF *filter){
 	p_body *res=(p_body*)calloc(sizeof(p_body),1);

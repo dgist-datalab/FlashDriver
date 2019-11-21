@@ -69,6 +69,7 @@ endif
 CFLAGS +=\
 		 $(CFLAGS_ALGO)\
 		 -D$(TARGET_LOWER)\
+		 -D$(TARGET_ALGO)\
 		 -D$(TARGET_INF)\
 		 -D_DEFAULT_SOURCE\
 		 -D_BSD_SOURCE\

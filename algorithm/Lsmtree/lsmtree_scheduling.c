@@ -3,7 +3,6 @@
 #include "../../bench/bench.h"
 
 extern lsmtree LSM;
-extern MeasureTime write_opt_time[10];
 lsm_io_scheduler scheduler;
 static pthread_t sched_id;
 void processing_flush(void *param);

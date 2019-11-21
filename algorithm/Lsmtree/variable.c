@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 extern lsmtree LSM;
-extern MeasureTime write_opt_time[10];
 void *variable_value2Page(level *in, l_bucket *src, value_set ***target_valueset, int* target_valueset_from, bool isgc){
 	int v_idx;
 	/*for normal data*/

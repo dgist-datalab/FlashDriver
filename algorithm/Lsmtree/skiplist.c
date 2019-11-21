@@ -16,7 +16,6 @@
 #include "page.h"
 
 
-extern MeasureTime write_opt_time[10];
 extern lsmtree LSM;
 
 #endif

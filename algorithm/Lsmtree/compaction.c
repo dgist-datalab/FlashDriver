@@ -11,7 +11,6 @@ extern compM compactor;
 #ifdef KVSSD
 extern KEYT key_min, key_max;
 #endif
-extern MeasureTime write_opt_time[10];
  extern lmi LMI;
  extern llp LLP;
  extern lsp LSP;
@@ -119,7 +118,6 @@ uint32_t leveling(level *from,level *to, leveling_node *l_node,pthread_mutex_t *
 	page_check_available(HEADER,total_number+(GETCOMPOPT(LSM.setup_values)==HW?1:0)+LSM.result_padding);
 
 	lower_wait();
-	bench_custom_start(write_opt_time,0);
 	if(target->idx<LSM.LEVELCACHING){
 		if(to->n_num==0){
 			compaction_empty_level(&from,l_node,&target);
@@ -159,7 +157,6 @@ uint32_t leveling(level *from,level *to, leveling_node *l_node,pthread_mutex_t *
 		else
 			compactor.pt_leveling(target,target_origin,l_node,from);
 	}
-	bench_custom_A(write_opt_time,0);
 	
 last:
 	if(entry) free(entry);
@@ -190,7 +187,6 @@ uint32_t partial_leveling(level* t,level *origin,leveling_node *lnode, level* up
 	if(!upper){
 		LSM.lop->range_find_compaction(origin,start,end,&target_s);
 
-		bench_custom_start(write_opt_time,1);
 		for(int j=0; target_s[j]!=NULL; j++){
 			if(!htable_read_preproc(target_s[j])){
 				compaction_htable_read(target_s[j],(PTR*)&target_s[j]->cpt_data);
@@ -222,7 +218,6 @@ uint32_t partial_leveling(level* t,level *origin,leveling_node *lnode, level* up
 			abort();
 		}
 
-		bench_custom_start(write_opt_time,1);
 		for(int i=0; target_s[i]!=NULL; i++){
 			run_t *temp=target_s[i];
 			if(temp->iscompactioning==SEQCOMP){

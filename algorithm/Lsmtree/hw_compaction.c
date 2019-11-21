@@ -12,7 +12,6 @@ extern lsmtree LSM;
 #ifdef KVSSD
 extern KEYT key_min, key_max;
 #endif
-extern MeasureTime write_opt_time[10];
 
 void make_pbn_array(ppa_t *ar, level *t, int start_idx){
 //	lev_iter *iter=LSM.lop->get_iter(t,t->start,t->end);

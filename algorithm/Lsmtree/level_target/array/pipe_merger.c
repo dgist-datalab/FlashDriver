@@ -4,7 +4,6 @@
 #include "../../../../bench/bench.h"
 #include "../../compaction.h"
 #include "../../nocpy.h"
-extern MeasureTime write_opt_time[10];
 p_body *rp;
 char **r_data;
 bool cutter_start;
