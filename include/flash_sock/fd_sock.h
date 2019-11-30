@@ -14,15 +14,20 @@
 #include "buffer_manager.h"
 #define EPOLL_CLNT 128
 #define EPOLL_NUM (EPOLL_CLNT+1)
+#define FIXED_HEADER_LENGTH (1+1+4+4)
 
 enum net_type{
-	YCSB,REDIS,ROCKSDB,OLTP,FILESOCK
+	YCSB,REDIS,ROCKSDB,OLTP,FILESOCK,KOOFS
 };
 
 enum nt_type{
 	NON_TYPE,WRITE_TYPE,READ_TYPE,RANGE_TYPE
 };
 
+enum kfs_type{
+	SL_KVD_SET,SL_KVD_GET,SL_KVD_DELETE
+};
+/*
 typedef struct netdata_t{
 	uint8_t type;
 	uint8_t keylen;
@@ -30,6 +35,15 @@ typedef struct netdata_t{
 	uint32_t scanlength;
 	char key[UINT8_MAX];
 	uint32_t valuelen;
+}netdata;
+*/
+
+typedef struct kfs_netdata_t{
+	uint8_t type;
+	uint8_t keylen;
+	uint32_t seq;
+	uint32_t valuelen;
+	char key[UINT8_MAX];
 }netdata;
 
 typedef struct redis_buffer{
@@ -71,4 +85,8 @@ int fd_sock_write_ycsb(fd_sock_m*, netdata*);
 /*for file function*/
 int fd_sock_read_file(fd_sock_m*, netdata *);
 int fd_sock_write_file(fd_sock_m*, netdata*);
+
+/*for koofs*/
+int fd_sock_read_kfs(fd_sock_m*, netdata *);
+int fd_sock_write_kfs(fd_sock_m*, netdata *);
 #endif

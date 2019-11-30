@@ -20,7 +20,9 @@ int protocol_type(char *r){
 			else return ROCKSDB;
 		case 'O': return OLTP;
 		case 'F': return FILESOCK;
+		case 'S': return KOOFS;
 	}
+	return -1;
 }
 
 void fd_sock_epoll_accept(fd_sock_m *f){
@@ -80,6 +82,7 @@ fd_sock_m *fd_sock_init(char *ip, int port, int type){
 			break;
 		case FILESOCK:
 			res->fp=fopen("trace","r");
+		case KOOFS:
 			return res;
 	}
 
@@ -165,6 +168,9 @@ int fd_sock_requests(fd_sock_m *f, netdata * nd){
 			case FILESOCK:
 				res=fd_sock_read_file(f,nd);
 				break;
+			case KOOFS:
+				res=fd_sock_read_kfs(f,nd);
+				break;
 		}
 	}while(res==CLOSEDSESSION || res==NEWSESSION || res==RETRYSESSION);
 
@@ -185,6 +191,8 @@ int fd_sock_reply(fd_sock_m *f, netdata * nd){
 			break;
 		case FILESOCK:
 			fd_sock_write_file(f,nd);
+		case KOOFS:
+			fd_sock_write_kfs(f,nd);
 			break;
 	}
 	return 1;
@@ -314,6 +322,9 @@ int fd_sock_write_redis(fd_sock_m *f, netdata* nd){
 int fd_sock_read_ycsb(fd_sock_m* f, netdata *data){
 	char data_temp[6];
 	int res;
+	printf("error: you should change netdata\n");
+	abort();
+	/*
 retry:
 	res=fd_sock_read(f,(char*)data_temp,sizeof(data->keylen)+sizeof(data->type)+sizeof(data->seq));
 	if(res==-1){
@@ -339,11 +350,22 @@ retry:
 			data->valuelen=htobe32(data->valuelen);
 	//		printf("value_len:%d\n",data->valuelen);
 			break;
-	}
+	}*/
 	return data->type==WRITE_TYPE?1:0;
 }
 
 int fd_sock_write_ycsb(fd_sock_m* f, netdata *nd){
+	fd_sock_write(f,(char*)&nd->seq,sizeof(nd->seq));
+	return 1;
+}
+
+int fd_sock_read_kfs(fd_sock_m* f, netdata *nd){
+	fd_sock_read(f,(char*)nd,FIXED_HEADER_LENGTH);
+	fd_sock_read(f,nd->key,nd->keylen);
+	return nd->type==SL_KVD_SET?1:0;
+}
+
+int fd_sock_write_kfs(fd_sock_m* f, netdata *nd){
 	fd_sock_write(f,(char*)&nd->seq,sizeof(nd->seq));
 	return 1;
 }
@@ -391,7 +413,7 @@ int fd_sock_read_file(fd_sock_m* f, netdata *data){
 	static int cnt=0;
 	if(f->fp){
 		cnt++;
-		fscanf(f->fp,"%d%d%d%d%s%d", &data->type,&data->keylen,&data->seq, &data->scanlength, data->key,&data->valuelen);
+	//	fscanf(f->fp,"%u%d%d%s%d", &data->type,&data->keylen,&data->seq, data->key,&data->valuelen);
 		//fscanf(f->fp,"%d", &data->type);
 	}else{
 		printf("what have to do!\n");
@@ -408,6 +430,6 @@ int fd_sock_write_file(fd_sock_m* f, netdata* nd){
 }
 
 void fd_print_netdata(FILE *fp, netdata* data){
-	fprintf(fp,"%d %d %d %d %.*s %d\n",data->type,data->keylen,data->seq, data->scanlength, data->keylen,data->key,data->valuelen);
+	fprintf(fp,"%d %d  %d %.*s %d\n",data->type,data->keylen,data->seq, data->keylen,data->key,data->valuelen);
 	fflush(fp);
 }

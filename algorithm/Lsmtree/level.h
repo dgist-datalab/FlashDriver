@@ -157,6 +157,9 @@ typedef struct level_ops{
 	run_t**(*find_run_num)( level*,KEYT lpa, uint32_t num);
 	void (*release_run)( run_t *);
 	run_t* (*run_cpy)( run_t *);
+	uint32_t (*run_idx)(level *, run_t *);
+	int (*run_key_at)(char *data, uint32_t idx, KEYT *target);
+	bool (*is_last_key)(char *data, int offset);
 
 	/*mapping operation*/
 	ppa_t (*moveTo_fr_page)(bool isgc);

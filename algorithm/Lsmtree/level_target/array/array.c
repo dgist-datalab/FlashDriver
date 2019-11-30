@@ -55,6 +55,9 @@ level_ops a_ops={
 	.find_run_num=array_find_run_num,
 	.release_run=array_free_run,
 	.run_cpy=array_run_cpy,
+	.run_idx=array_run_idx,
+	.run_key_at=array_run_key_at,
+	.is_last_key=array_is_last_key,
 
 	.moveTo_fr_page=def_moveTo_fr_page,
 	.get_page=def_get_page,
@@ -731,6 +734,29 @@ void array_check_order(level *lev){
 		}
 		bef=now;
 	}
+}
+
+uint32_t array_run_idx(level *lev, run_t * r){
+	array_body *b=(array_body*)lev->level_data;
+	return r-b->arrs;
+}
+
+int array_run_key_at(char *data, uint32_t idx, KEYT *target){
+	uint16_t *bitmap=(uint16_t *)data;
+	int offset=idx+1;
+	if(bitmap[0]>offset){
+		target->key=NULL;
+		return 0;
+	}
+	target->len=bitmap[offset+1]-bitmap[offset]-sizeof(ppa_t);
+	target->key=(char*)&data[bitmap[offset]+sizeof(ppa_t)];
+	return 1;
+}
+
+bool array_is_last_key(char *data, int offset){
+	uint16_t *bitmap;
+	bitmap=(uint16_t *)data;
+	return bitmap[0]>(offset+1);
 }
 
 void array_print_run(run_t * r){

@@ -25,12 +25,12 @@ typedef struct upper_request{
 typedef struct value_set{
 	PTR value;
 	uint32_t length;
+	uint32_t org_length;
 	int dmatag; //-1 == not dma_alloc, others== dma_alloc
 	uint32_t ppa;
 	bool from_app;
 	PTR rmw_value;
 	uint8_t status;
-	uint32_t len;
 	uint32_t offset;
 }value_set;
 
@@ -39,6 +39,11 @@ struct request {
 	KEYT key;
 	uint64_t ppa;/*it can be the iter_idx*/
 	uint32_t seq;
+	union special{
+		int req_num;
+		int iter_idx;
+	} spe;
+	char *iter_result;
 	volatile int num; /*length of requests*/
 	volatile int cpl; /*number of completed requests*/
 	int not_found_cnt;
@@ -139,10 +144,8 @@ struct algorithm{
 #ifdef KVSSD
 	uint32_t (*iter_create)(request *const);
 	uint32_t (*iter_next)(request *const);
-	uint32_t (*iter_next_with_value)(request *const);
 	uint32_t (*iter_release)(request *const);
-	uint32_t (*iter_all_key)(request *const);
-	uint32_t (*iter_all_value)(request *const);
+
 	uint32_t (*multi_set)(request *const,int num);
 	uint32_t (*multi_get)(request *const,int num);
 	uint32_t (*range_query)(request *const);

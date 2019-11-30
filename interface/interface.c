@@ -266,15 +266,7 @@ void *p_main(void *__input){
 			case FS_ITER_NXT_T:
 				mp.algo->iter_next(inf_req);
 				break;
-			case FS_ITER_NXT_VALUE_T:
-				mp.algo->iter_next_with_value(inf_req);
-				break;
-			case FS_ITER_ALL_T:
-				mp.algo->iter_all_key(inf_req);
-				break;
-			case FS_ITER_ALL_VALUE_T:
-				mp.algo->iter_all_value(inf_req);
-				break;
+
 			case FS_RANGEGET_T:
 				mp.algo->range_query(inf_req);
 				break;
@@ -557,17 +549,6 @@ bool inf_end_req( request * const req){
     if(req->type==FS_BUSE_R)
         MS(&infendTime);
 #endif
-	if(req->type==FS_RMW_T){
-		req->type=FS_SET_T;
-		value_set *original=req->value;
-		memcpy(&original->value[original->offset],original->rmw_value,original->len);
-		value_set *temp=inf_get_valueset(req->value->value,FS_SET_T,req->value->length);
-
-		free(original->value);
-		req->value=temp;
-		assign_req(req);
-		return 1;
-	}
 
 	if(req->isstart){
 		bench_reap_data(req,mp.li);
@@ -875,6 +856,7 @@ value_set *inf_get_valueset(PTR in_v, int type, uint32_t length){
 	else{
 		memset(res->value,0,length);
 	}
+	res->org_length=0;
 	return res;
 }
 

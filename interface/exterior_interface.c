@@ -15,17 +15,22 @@ static bool _fd_end_req(request *const req){
 	char *value;
 	uint8_t klen;
 	switch(req->type){
-		case FD_KVD_SET:
-			inf_free_valueset(req->value,FS_MALLOC_W);
+		case FS_SET_T:
+			if(req->value)
+				inf_free_valueset(req->value,FS_MALLOC_W);
 			break;
-		case FD_KVD_GET:
+		case FS_GET_T:
 			value=req->value->value;
 			klen=*(uint8_t*)&value[0];
+			printf("[LSMTREE] Get value: (%.*s) l-%d v-%s\n",\
+					*((uint8_t*)&value[0]),(char*)&value[1+sizeof(uint32_t)],\
+					*((uint8_t*)&value[1]), &value[2+klen]);
 			memcpy(req->rvlen,&value[sizeof(uint8_t)],sizeof(uint32_t));
 			memcpy(req->pparam,&value[5+klen],*req->rvlen);
+
 			inf_free_valueset(req->value,FS_MALLOC_R);
 			break;
-		case FD_KVD_DELETE:
+		case FS_DELETE_T:
 			break;
 	}
 	
@@ -36,7 +41,6 @@ static bool _fd_end_req(request *const req){
 	
 int _fd_kvd_ops(uint32_t type, void *key, uint8_t keylen, void *value, uint32_t vlen, uint32_t *rvlen, void *preq, void (*end_req)(void *req)){
 	request *req;
-	uint32_t n_type;
 
 	req=(request *)calloc(1,(sizeof(request)));
 	req->end_req=_fd_end_req;
@@ -57,8 +61,9 @@ int _fd_kvd_ops(uint32_t type, void *key, uint8_t keylen, void *value, uint32_t 
 				fprintf(stderr,"it has size limited!! len+key.len+sizeof(key.len)+sizeof(vlen):%ld>%d\n",vlen+keylen+sizeof(keylen)+sizeof(vlen),PAGESIZE);
 				abort();
 			}
-			n_type=FS_SET_T;
+			req->type=FS_SET_T;
 			req->value=inf_get_valueset(NULL,FS_SET_T,vlen+keylen+sizeof(keylen)+sizeof(vlen));
+			req->value->org_length=vlen;
 			vvalue=req->value->value;
 			memcpy(&vvalue[vptr++],&keylen,sizeof(keylen)); //it include uint8_t size 
 			memcpy(&vvalue[vptr],&vlen,sizeof(vlen));
@@ -66,20 +71,24 @@ int _fd_kvd_ops(uint32_t type, void *key, uint8_t keylen, void *value, uint32_t 
 			memcpy(&vvalue[vptr],key,keylen);
 			vptr+=keylen;
 			memcpy(&vvalue[vptr],value,vlen);
+			printf("[LSMTREE] org set value: (%.*s) l-%d v-%.*s\n",keylen,(char*)key,vlen,vlen, (char*)value);
+			printf("[LSMTREE] saved set value: (%.*s) l-%d v-%s\n",\
+					*((uint8_t*)&vvalue[0]),(char*)&vvalue[1+sizeof(vlen)],\
+					*((uint8_t*)&vvalue[1]), &vvalue[vptr]);
 /*
 			memcpy(&req->value->value[keylen+sizeof(keylen)],value,vlen);
 			memcpy(req->value->value,&keylen,sizeof(keylen));
 			memcpy(&req->value->value[sizeof(keylen)],key,keylen);
-			my_engine.algo->write(req);
  */
+			my_engine.algo->write(req);
 			break;
 		case FD_KVD_GET:
-			n_type=FS_GET_T;
+			req->type=FS_GET_T;
 			req->value=inf_get_valueset(NULL,FS_GET_T,PAGESIZE);
 			my_engine.algo->read(req);
 			break;
 		case FD_KVD_DELETE:
-			n_type=FS_DELETE_T;
+			req->type=FS_DELETE_T;
 			req->value=NULL;
 			my_engine.algo->remove(req);
 			break;

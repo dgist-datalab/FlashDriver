@@ -41,6 +41,8 @@ SRCS +=\
 	   lsmtree_scheduling.c\
 	   data_simul.c\
 	   lsmtree_params_settings.c\
+	   iterator.c\
+	   lsmtree_iterator.c\
 #merge_compaction.c\
 	   run_array.c\
 	   lsmtree_mop.c\

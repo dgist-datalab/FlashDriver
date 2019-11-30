@@ -29,12 +29,10 @@ struct algorithm algo_lsm={
 	.read=lsm_get,
 	.write=lsm_set,
 	.remove=lsm_remove,
-	.iter_create=NULL,
-	.iter_next=NULL,
-	.iter_next_with_value=NULL,
-	.iter_release=NULL,
-	.iter_all_key=NULL,
-	.iter_all_value=NULL,
+
+	.iter_create=lsm_iter_create,
+	.iter_next=lsm_iter_next,
+	.iter_release=lsm_iter_release,
 
 	.multi_set=NULL,
 	.multi_get=NULL,
@@ -516,9 +514,8 @@ int __lsm_get_sub(request *req,run_t *entry, keyset *table,skiplist *list){
 	if(list){//skiplist check for memtable and temp_table;
 		target_node=skiplist_find(list,req->key);
 		if(!target_node) return 0;
-		bench_cache_hit(req->mark);
 		if(target_node->value){
-		//	memcpy(req->value->value,target_node->value->value,PAGESIZE);
+			memcpy(req->value->value,target_node->value->value,target_node->value->org_length);
 			if(req->type==FS_MGET_T){
 				//lsm_mget_end_req(lsm_get_empty_algoreq(req));						
 			}
@@ -539,7 +536,6 @@ int __lsm_get_sub(request *req,run_t *entry, keyset *table,skiplist *list){
 		target_set=LSM.lop->find_keyset((char*)entry->cpt_data->sets,req->key);
 		if(target_set){
 			lsm_req=lsm_get_req_factory(req,DATAR);
-			bench_cache_hit(req->mark);	
 			req->value->ppa=target_set->ppa>>1;
 			ppa=target_set->ppa;
 			res=4;
@@ -707,7 +703,6 @@ uint32_t __lsm_get(request *const req){
 	int run;
 	int round;
 	int res;
-	int mark=req->mark;
 	htable mapinfo;
 	run_t *entry;
 	keyset *found=NULL;
@@ -794,7 +789,6 @@ retry:
 			if(entry->c_entry){
 				res=ISNOCPY(LSM.setup_values)?__lsm_get_sub(req,NULL,(keyset*)entry->cache_nocpy_data_ptr,NULL):__lsm_get_sub(req,NULL,entry->cache_data->sets,NULL);
 				if(res){
-					bench_cache_hit(mark);
 					cache_update(LSM.lsm_cache,entry);	
 					pthread_mutex_unlock(&LSM.lsm_cache->cache_lock);
 					res=FOUND;

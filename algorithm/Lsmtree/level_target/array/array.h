@@ -103,6 +103,11 @@ uint32_t a_max_flush_entry(uint32_t);
 void array_free_run( run_t*);
 void array_run_cpy_to(run_t *, run_t *);
 run_t* array_run_cpy( run_t *);
+
+uint32_t array_run_idx(level *,run_t *);
+int array_run_key_at(char *data, uint32_t idx, KEYT *target);
+bool array_is_last_key(char *data, int offset);
+
 #ifdef BLOOM
 htable *array_mem_cvt2table(skiplist*,run_t*,BF *filter);
 #else

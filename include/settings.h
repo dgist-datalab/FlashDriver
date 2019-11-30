@@ -44,6 +44,7 @@ typedef enum{false,true} bool;
 #define TOTALSIZE (300L*G)
 #define REALSIZE (512L*G)
 #define PAGESIZE (8*K)
+#define ITERSIZE (PAGESIZE)
 #define _PPB (256)
 #define BPS (64)
 #define _PPS (_PPB*BPS)
@@ -142,6 +143,15 @@ static inline bool KEYVALCHECK(KEYT a){
 		return false;
 	return true;
 }
+
+static inline int KEYPREFIXCHECK(KEYT target, KEYT prefix){
+	if(!target.len && !prefix.len) return 1;
+	else if(target.len==0) return 0;
+	else if(prefix.len==0) return 0;
+
+	return !memcmp(target.key,prefix.key,prefix.len);
+}
+
 #else
 	#define KEYT uint32_t
 #endif

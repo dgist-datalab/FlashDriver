@@ -194,6 +194,7 @@ typedef struct lsmtree{
 	bool debug_flag;
 }lsmtree;
 
+
 uint32_t lsm_argument_set(int argc, char **argv);
 uint32_t lsm_create(lower_info *, blockmanager *, algorithm *);
 uint32_t __lsm_create_normal(lower_info *, algorithm *);
@@ -231,4 +232,8 @@ uint32_t lsm_test_read(ppa_t ppa, char *data);
 level *lsm_level_resizing(level *target, level *src);
 KEYT* lsm_simul_get(ppa_t ppa); //copy the value
 void lsm_simul_del(ppa_t ppa);
+
+uint32_t lsm_iter_create(request *const);
+uint32_t lsm_iter_next(request *const);
+uint32_t lsm_iter_release(request *const);
 #endif

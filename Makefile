@@ -2,7 +2,7 @@ export CC=g++
 
 TARGET_INF=interface
 TARGET_LOWER=posix_memory
-TARGET_ALGO=demand
+TARGET_ALGO=Lsmtree
 TARGET_BM=partition
 JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 
@@ -12,7 +12,7 @@ DEBUGFLAGS=\
 			-rdynamic\
 			-Wno-pointer-arith\
 			-g\
--fsanitize=address\
+#-fsanitize=address\
 #	-DBUSE_DEBUG
 
 export COMMONFLAGS=\
@@ -34,6 +34,7 @@ export CFLAGS_ALGO=\
 			 -fPIC\
 			 -Wall\
 			 -D$(TARGET_LOWER)\
+			 -D$(TARGET_ALGO)\
 		 -DDVALUE\
 
 export CFLAGS_LOWER=\
@@ -118,7 +119,7 @@ LIBS +=\
 #	-laio\
 	#	-ljemalloc\
 
-all: driver
+all: kfs_driver
 
 DEBUG: debug_driver
 
@@ -133,7 +134,7 @@ driver: ./interface/main.c libdriver.a
 bd_testcase: ./interface/mainfiles/testcase.c libdriver.a
 	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)
 
-kv_driver: ./interface/mainfiles/NET_main.c libdriver.a libfdsock.a
+kfs_driver: ./interface/mainfiles/kfs_main.c libdriver.a libfdsock.a
 	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)
 
 tc_driver: ./interface/mainfiles/trace_collect_main.c libdriver.a libfdsock.a
