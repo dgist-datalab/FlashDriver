@@ -82,50 +82,6 @@ int gc_compare(const void *a, const void *b){
 }
 
 
-#if SUPERBLK_GC
-uint32_t ppa_alloc(uint32_t lba){
-	uint32_t hashkey;
-	uint32_t superblk, offset, ppa;
-	uint32_t bf_idx;
-	Block *block;
-	superblk = lba / mask;
-	block = &bm->block[superblk];
-	offset = block->p_offset;
-
-	//Reblooming trigger
-	/*
-	   if(b_table[superblk].bf_num >= r_check){
-	   rebloom(superblk);
-	   }
-	 */
-
-	if(offset == _PPB){
-		//GC trigger
-		offset = bloom_gc(superblk);
-	}	
-	if(offset != 0){
-		hashkey = hashing_key(lba);
-		bf_idx = b_table[superblk].bf_num;
-		sb[superblk].bf_page[offset].s_idx = bf_idx;
-		set_bf(hashkey + offset, superblk, offset);
-		sb[superblk].p_flag[offset] = 1;
-		b_table[superblk].bf_num++;
-	}
-
-	if(!lba_flag[lba])
-		lba_flag[lba] = 1;
-
-	block->valid[offset] = 1;
-	block->page[offset].oob = lba;
-	ppa = (block->pba_idx * _PPB) + offset;
-	block->p_offset++;
-
-
-	return ppa;
-
-
-}
-#else
 uint32_t ppa_alloc(uint32_t lba){
 	Block *block;
 	uint32_t superblk, cur_idx;
@@ -143,10 +99,6 @@ uint32_t ppa_alloc(uint32_t lba){
 #else
 	superblk = (lba >> S_BIT) % nos;
 #endif
-//	printf("LBA : %d\n",lba);
-	//	struct timeval start, end;
-
-
 	check_cnt++;
 	if(check_cnt >= RANGE){
 		check_flag = 1;
@@ -156,7 +108,6 @@ uint32_t ppa_alloc(uint32_t lba){
 		lba_flag[lba] = 1;
 	else{
 		invalid_ppa = table_lookup(lba,0);
-	//	printf("invalid_ppa : %d\n",invalid_ppa);
 		BM_InvalidatePage(bm, invalid_ppa);
 	}
 
@@ -170,10 +121,7 @@ uint32_t ppa_alloc(uint32_t lba){
 #endif
 
 	if(b_table[superblk].full == pps){
-
 		b_table[superblk].first = 0;
-//		gettimeofday(&start, NULL);
-
 		bloom_gc(superblk);
 	}else{
 		get_cur_block(superblk);
@@ -222,8 +170,6 @@ uint32_t ppa_alloc(uint32_t lba){
 	return ppa;
 
 }
-#endif
-
 
 
 uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
@@ -539,17 +485,7 @@ void reset_bf_table(uint32_t superblk){
 			f_offset++;
 		}
 	}
-	/*
-	if(rb_flag){
-		printf("flag set!\n");
-		printf("superblk : %d\n",superblk);
-		printf("f_offset : %d full : %d\n",f_offset, b_table[superblk].full);
-	}else if(gc_flag){
-		printf("gc set!\n");
-		printf("superblk : %d\n",superblk);
-		printf("f_offset : %d full : %d\n",f_offset, b_table[superblk].full);
-	}
-	*/
+
 	if(f_offset != b_full){
 		printf("superblk : %d\n",superblk);
 		printf("f_offset : %d full : %d\n",f_offset, b_table[superblk].full);

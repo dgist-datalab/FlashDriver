@@ -5,7 +5,7 @@ algorithm __bloomftl = {
 	.destroy = bloom_destroy,
 	.read    = bloom_read,
 	.write   = bloom_write,
-//	.remove  = bloom_remove
+	//	.remove  = bloom_remove
 	.remove = NULL
 };
 
@@ -66,98 +66,24 @@ uint32_t r_count;
 bool rb_flag;
 bool gc_flag;
 
-#if !SUPERBLK_GC
 int32_t nos;
 int32_t pps;
-#endif
 #if REBLOOM
 uint32_t r_check;
 #endif
 
 uint32_t g_cnt;
 
-#if SUPERBLK_GC
-void bloom_create(void){
-
-	ppb = _PPB;
-	//Set global bloomfilter
-	bf = bf_init(1, ppb);
-
-
-	lnp = L_PAGES;
-	mask = MASK;
-
-	nob = _NOS;
-	nop = _NOP;
-#if REBLOOM
-	r_check = ppb/2;
-	bf->base_s_bytes = bf->base_s_bytes;
-#endif
-
-
-	b_table = (BF_TABLE *)malloc(sizeof(BF_TABLE) * nob);
-	sb = (SBmanager *)malloc(sizeof(SBmanager) * nob);
-	gm = (GCmanager *)malloc(sizeof(GCmanager) * mask);
-	lba_flag = (bool *)malloc(sizeof(bool) * lnp);
-
-	memset(lba_flag, 0, sizeof(bool) * lnp);
-
-	printf("---- BloomFTL (SUPER) ----\n");
-	printf("Storage total Logical pages     : %d\n",lnp);
-	printf("Storage total Physical pages    : %d\n",nop);
-	printf("Storage total Physical blocks   : %d\n",nob);
-	printf("Storage Data page per block     : %d\n",mask);
-	printf("Storage OP   page per block     : %d\n",ppb - mask);
-#if REBLOOM
-	printf("Storage Rebloom trigger count   : %d\n",r_check);
-#endif
-
-
-	//Set BF table for physical blocks
-	for(int i = 0 ; i < nob; i++){
-		b_table[i].bf_arr = (uint8_t *)malloc(sizeof(uint8_t) * bf->base_s_bytes);
-		memset(b_table[i].bf_arr, 0, sizeof(uint8_t) * bf->base_s_bytes);
-		b_table[i].bf_num = 0;
-		
-#if REBLOOM
-		b_table[i].pre_lba = -1;
-		b_table[i].rb_cnt = 0;
-		sb[i].lba_bf = (bool *)malloc(sizeof(bool) * mask);
-		memset(sb[i].lba_bf, 0, sizeof(bool) * mask);	
-#endif
-	
-		sb[i].bf_page = (Index *)malloc(sizeof(Index) * ppb);
-		sb[i].p_flag = (bool *)malloc(sizeof(bool) * ppb);
-		memset(sb[i].bf_page, -1, sizeof(Index) * ppb);
-		memset(sb[i].p_flag, 0, sizeof(bool) * ppb);
-		
-		sb[i].num_s_bits = bf->base_s_bits;
-		sb[i].num_s_bytes = bf->base_s_bytes;
-		
-	}
-
-
-	return ;
-
-}
-#else
 uint32_t bloom_create(lower_info *li, algorithm *algo){
 
 
 	algo->li = li;
-	uint64_t a = TOTALSIZE;
 	ppb = _PPB;
 	pps = ppb * SUPERBLK_SIZE;
 	//pps = _PPS*SUPERBLK_SIZE;
-	printf("TOTALSIZE : %lld\n",a);
 	//Set global bloomfilter
 	bf = bf_init(1, pps);
-	uint64_t b,c;
-	b = _NOS;
-	c = _NOB;
-	printf("_NOB : %d\n",b);
-	printf("_NOS : %d\n",c);
-	
+
 
 	//lnp = L_DEVICE / PAGESIZE;
 	//mask = ceil((pps * (1 - 0.07)));
@@ -177,17 +103,6 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 		prefetcher[i].sn = NULL;
 	}
 #endif
-
-
-	/*
-	if(_PPB != (1 << 7)){
-		printf("PAGE PER BLOCK ERROR. Please reset macro _PPB variable\n");
-		
-		exit(0);
-	}
-	*/
-//	printf("bf->base_s_bytes : %d\n", bf->base_s_bytes);
-
 	//nob = (lnp / mask);
 	//nob = (nob+1) * SUPERBLK_SIZE;
 	nob = _NOB;
@@ -221,22 +136,10 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 	}
 
 
-	
-	/*
-	valid_p = (G_manager *)malloc(sizeof(G_manager) * pps);
-	write_p = (G_manager *)malloc(sizeof(G_manager) * pps);
-	for(int i = 0 ; i < pps; i++){
-		valid_p[i].t_table = (T_table *)malloc(sizeof(T_table));
-		write_p[i].t_table = (T_table *)malloc(sizeof(T_table));
-		memset(valid_p[i].t_table, 0, sizeof(T_table));
-		memset(write_p[i].t_table, 0, sizeof(T_table));
-		write_p[i].value = valie_p[i].value = NULL;
-	}
-	*/
 #if REBLOOM
-	
+
 	//When reblooming is trigger, use a bucket for coalesced pages 
-	
+
 	rb = (G_manager *)malloc(sizeof(G_manager) * pps);
 	for(int i = 0 ; i < pps ; i++){
 		rb[i].t_table = (T_table *)malloc(sizeof(T_table) * MAX_RB);
@@ -252,7 +155,7 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 		memset(re_list[i].t_table, -1, sizeof(T_table) * ppb);
 		re_list[i].size = 0;
 	}
-	
+
 #endif
 
 	printf("---- BloomFTL (SINGLE) ----\n");
@@ -284,10 +187,10 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 #endif
 		sb[i].bf_page = (Index *)malloc(sizeof(Index) * pps);
 		sb[i].p_flag = (bool *)malloc(sizeof(bool) * pps);
-		
+
 		memset(sb[i].bf_page, -1, sizeof(Index) * pps);
 		memset(sb[i].p_flag, 0, sizeof(bool) * pps);
-		
+
 		sb[i].num_s_bits = bf->base_s_bits;
 		sb[i].num_s_bytes = bf->base_s_bytes;
 
@@ -303,30 +206,19 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 		}
 	}
 
-	/*		
-	for(int i = 0 ; i < nos; i++){
-		printf("Superblk[%d] : ", i);
-		for(int j = 0; j < SUPERBLK_SIZE; j++){
-			printf("%d ",b_table[i].b_bucket[j]->PBA);
-		}
-		printf("\n");
-	}
-	exit(0);
-	*/
 	return 1;
 
 }
-#endif
 void bloom_destroy(lower_info *li, algorithm *algo){
 
 	double bf_memory    = 0.0;
 	double flag_memory  = 0.0;
 	double total_memory = 0.0; 
 	double max_memory = 0.0;
-    printf("--------- Benchmark Result ---------\n\n");
-    printf("Total request  I/O count   : %d\n",algo_write_cnt+algo_read_cnt);
-    printf("Total write    I/O count   : %d\n",algo_write_cnt);
-    printf("Total read     I/O count   : %d\n",algo_read_cnt);
+	printf("--------- Benchmark Result ---------\n\n");
+	printf("Total request  I/O count   : %d\n",algo_write_cnt+algo_read_cnt);
+	printf("Total write    I/O count   : %d\n",algo_write_cnt);
+	printf("Total read     I/O count   : %d\n",algo_read_cnt);
 	printf("Total found count          : %d\n",found_cnt);
 	printf("Total Not found count      : %d\n",not_found_cnt);
 	printf("Total GC write I/O count   : %d\n",gc_write);
@@ -351,11 +243,7 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 
 	//Table free
 	bf_free(bf);
-#if SUPERBLK_GC
-	for(int i = 0 ; i < nob; i++){
-#else
 	for(int i = 0 ; i < nos; i++){
-#endif
 		bf_memory   += (b_table[i].bf_num * 12) / 8; // for BF
 		flag_memory += (ppb*SUPERBLK_SIZE) / 8;
 		max_memory  += (512*12)/8;
@@ -363,8 +251,6 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 		//free(b_table[i].bf_arr);
 		free(sb[i].bf_page);
 		free(sb[i].p_flag);
-#if REBLOOM
-#endif
 	}
 #if REBLOOM
 
@@ -383,7 +269,7 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 
 	free(b_table);
 	free(sb);
-	
+
 	free(lba_flag);
 	free(lba_bf);
 
@@ -392,22 +278,10 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 		free(gm[i].t_table);
 		gm[i].value = NULL;
 		gm[i].size = 0;
-
-#if REBLOOM
-		//free(rb[i].t_table);
-		//free(rb[i].value);
-#endif
-
 	}
 
 
 #if REBLOOM
-	/*
-	for(int i = 0 ; i < SUPERBLK_SIZE; i++){
-		free(re_list[i].t_table);
-		free(re_list[i].value);
-	}
-	*/
 	free(rb);
 	free(re_list);
 #endif
@@ -424,7 +298,7 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 #if W_BUFF
 	skiplist_free(write_buffer);
 #endif
-	
+
 	return ;
 }
 
@@ -435,7 +309,7 @@ uint32_t bloom_write(request* const req){
 	uint32_t lba = req->key;
 	uint32_t flush_lba;
 	algo_req *my_req;
-	
+
 	snode *temp;
 	static bool is_flush = false;
 
@@ -466,11 +340,7 @@ uint32_t bloom_write(request* const req){
 	temp = skiplist_insert(write_buffer, lba, req->value, true);
 
 	if(write_buffer->size == buf_idx+1){
-		//ppa = ppa_alloc(temp->key);
-		//temp->ppa = ppa;
 		prefetcher[buf_idx++].sn = temp;
-		//BM_ValidatePage(bm, ppa);
-		//bloom_oob[ppa].lba = lba;
 	}
 #endif
 	req->value = NULL;
@@ -483,60 +353,8 @@ uint32_t bloom_write(request* const req){
 
 }
 
-#if SUPERBLK_GC
 uint32_t bloom_read(request* const req){
-	Block *block;
-	uint32_t superblk, ppa;
-	uint32_t lba;
-	int idx;
-	register uint32_t hashkey;
-	lba = req->key;
-	if(lba > RANGE+1){
-		printf("range error %d\n",lba);
-		exit(0);
-	}
-	
-	read_cnt++; // Total read requests
-	superblk = lba / mask;
-	//superblk = (lba>>2) % nos;
-	block = &bm->block[superblk];
-	hashkey = hashing_key(lba);
-	if(lba_flag[lba] == 0){
-		return 0;
-	}
 
-	for(idx = block->p_offset-1; idx>0; idx--){
-		if(get_bf(hashkey+idx, superblk, idx)){
-			//If true, check oob
-			if(block->page[idx].oob == lba){
-				found_cnt++;
-				ppa = (block->pba_idx * _PPB) + idx;
-				break;
-			}else{
-				not_found_cnt++;
-			}
-		}
-	}
-
-	if(idx != 0)
-		return ppa;
-	else{
-		if(block->page[idx].oob != lba){
-			printf("block->page[%d].oob : %d\n",idx, block->page[idx].oob);
-			printf("LBA : %d\n",lba);
-			printf("This shuold not happen!!\n");
-			exit(0);
-		}
-		//printf("LBA : %d\n",lba);
-		found_cnt++;
-		ppa = (block->pba_idx * _PPB) + idx;
-	}
-
-	return ppa;
-}
-#else
-uint32_t bloom_read(request* const req){
-	
 #if W_BUFF
 	snode *temp;
 #endif
@@ -549,7 +367,7 @@ uint32_t bloom_read(request* const req){
 		exit(0);
 	}
 
-	
+
 	algo_read_cnt++;
 	if(lba_flag[lba] == 0){
 		req->end_req(req);
@@ -577,20 +395,17 @@ uint32_t bloom_read(request* const req){
 #endif
 
 	ppa = table_lookup(lba, 1);
-//	uint32_t check_ppa = bb_checker_fix_ppa(ppa) % 64;
-//	printf("check_ppa : %d\n",check_ppa);
 
-	
-	
+
+
 	__bloomftl.li->read(ppa, PAGESIZE, req->value, ASYNC, my_req);
-	
+
 	return 1;
-	
+
 }
-#endif
 
 uint32_t bloom_remove(request* const req){
-	
+
 	algo_req *my_req;
 	uint32_t lba = req->key;
 	uint32_t ppa;
@@ -609,7 +424,7 @@ uint32_t bloom_remove(request* const req){
 	my_req = assign_pseudo_req(DATAR, NULL, req);
 	ppa = table_lookup(lba,1);	
 	__bloomftl.li->read(ppa, PAGESIZE, req->value, ASYNC, my_req);
-	
+
 	remove_read++;
 	BM_InvalidatePage(bm, ppa);
 	bloom_oob[ppa].lba = -1;
@@ -620,7 +435,7 @@ uint32_t bloom_remove(request* const req){
 
 
 
-	
+
 }
 
 
@@ -628,7 +443,7 @@ void *bloom_end_req(algo_req *input){
 	bloom_params *params = (bloom_params *)input->params;
 	value_set *temp_set = params->value;
 	request *res = input->parents;
-	
+
 	switch(params->type){
 		case DATAR:
 			if(res){

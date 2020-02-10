@@ -30,12 +30,11 @@
 #define SYMMETRIC 1
 #define PR_SUCCESS 0.9
 #define SUPERBLK_SIZE 4
-#define MAX_RB 2
+#define MAX_RB 4
 #define S_BIT (MAX_RB/2)
 
 #define OFFSET_MODE 0          //Zone-based BloomFTL
 #define HASH_MODE 1	       //Decide superblock by hash
-#define SUPERBLK_GC 0
 #define REBLOOM 1
 #define OOR (RANGE+1)
 
@@ -67,11 +66,9 @@ typedef struct {
 typedef struct {
 	uint8_t *bf_arr;
 	uint32_t bf_num;
-#if !SUPERBLK_GC
 	Block **b_bucket;
 	uint32_t c_block;
 	int32_t full;
-#endif
 #if REBLOOM
 	uint32_t pre_lba;
 	uint32_t rb_cnt;
@@ -176,14 +173,12 @@ extern int32_t nob;
 extern int32_t ppb;
 extern int32_t nop;
 extern int32_t lnp;
-#if !SUPERBLK_GC
 extern int32_t nos;
 extern int32_t pps;
 extern uint32_t r_count;
 
 extern bool rb_flag;
 extern bool gc_flag;
-#endif
 #if REBLOOM
 extern uint32_t r_check;
 #endif
@@ -208,10 +203,8 @@ value_set* SRAM_load(int64_t, int ,TYPE);
 void SRAM_unload(SRAM *, int64_t, int, TYPE);
 
 
-#if !SUPERBLK_GC
 uint32_t get_cur_block(uint32_t);
 uint32_t set_bf_table(uint32_t, uint32_t, uint32_t);
-#endif
 
 void reset_bf_table(uint32_t);
 //debugging.c
