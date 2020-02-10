@@ -43,7 +43,7 @@
 #define DEVSIZE (64L * G)
 #define PAGESIZE (4*K)
 
-#define _PPB (1<<7)
+#define _PPB (1<<8)
 #define BPS (1)
 
 #define _PPS (_PPB * BPS)

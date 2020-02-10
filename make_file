@@ -1,0 +1,45 @@
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c interface/queue.c -o interface/queue.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c interface/interface.c -o interface/interface.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c interface/bb_checker.c -o interface/bb_checker.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c interface/buse.c -o interface/buse.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/FS.c -o include/FS.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/slab.c -o include/slab.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/utils/debug_tools.c -o include/utils/debug_tools.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/utils/dl_sync.c -o include/utils/dl_sync.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/utils/rwlock.c -o include/utils/rwlock.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/utils/cond_lock.c -o include/utils/cond_lock.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/data_struct/hash.c -o include/data_struct/hash.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/data_struct/list.c -o include/data_struct/list.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c bench/measurement.c -o bench/measurement.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c bench/bench.c -o bench/bench.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/utils/thpool.c -o include/utils/thpool.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/data_struct/redblack.c -o include/data_struct/redblack.o -lpthread -lm 
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -c include/data_struct/demand_hash.c -o include/data_struct/demand_hash.o -lpthread -lm 
+mkdir -p object && mkdir -p data
+cd ./algorithm/tpftl && make clean && make && cd ../../
+make[1]: Entering directory '/home/yumin/FlashDriver/algorithm/tpftl'
+make[1]: Leaving directory '/home/yumin/FlashDriver/algorithm/tpftl'
+make[1]: Entering directory '/home/yumin/FlashDriver/algorithm/tpftl'
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11  -c dftl.c -o ../../object/dftl.o
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11  -c garbage_collection.c -o ../../object/garbage_collection.o
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11  -c dftl_utils.c -o ../../object/dftl_utils.o
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11  -c lru_list.c -o ../../object/lru_list.o
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11  -c tp_utils.c -o ../../object/tp_utils.o
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11  -c ../Lsmtree/skiplist.c -o ../../object/skiplist.o
+make[1]: Leaving directory '/home/yumin/FlashDriver/algorithm/tpftl'
+cd ./lower/posix && make && cd ../../ 
+make[1]: Entering directory '/home/yumin/FlashDriver/lower/posix'
+g++ -g -lpthread -Wall -D_FILE_OFFSET_BITS=64  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -c posix.c -o ../../object/posix.o
+make[1]: Leaving directory '/home/yumin/FlashDriver/lower/posix'
+cd ./algorithm/blockmanager && make && cd ../../
+make[1]: Entering directory '/home/yumin/FlashDriver/algorithm/blockmanager'
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -c BM_Block.c -o ../../object/BM_Block.o
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -c BM_Heap.c -o ../../object/BM_Heap.o
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -c BM_Queue.c -o ../../object/BM_Queue.o
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -c BM_Interface.c -o ../../object/BM_Interface.o
+make[1]: Leaving directory '/home/yumin/FlashDriver/algorithm/blockmanager'
+mv ./include/data_struct/*.o ./object/
+mv ./include/utils/*.o ./object/
+mv ./interface/*.o ./object/ && mv ./bench/*.o ./object/ && mv ./include/*.o ./object/
+ar r libdriver.a ./object/*
+g++ -g -Wall -Dposix  -Wno-write-strings -DLARGEFILE64_SOURCE -DSLC -O2  -rdynamic -Wno-pointer-arith\	  -Dtpftl  -std=c++11 -Dposix -Dtpftl -Dinterface -D_DEFAULT_SOURCE -D_BSD_SOURCE -DBENCH -DCDF  -o driver interface/t_main.c libdriver.a  -lpthread -lm  -D CMD_LCYCLE=1 -D CMD_RCYCLE=1

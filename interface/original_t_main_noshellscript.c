@@ -12,18 +12,12 @@
 #include "../bench/bench.h"
 #include "../bench/measurement.h"
 #include "interface.h"
+#define LOAD_FILE WEBPROXY_LOAD_16
+#define RUN_FILE  WEBPROXY_RUN_16
 
-//#define LOAD_FILE CMD_LFILE
-//#define RUN_FILE  CMD_RFILE
-#define LOAD_CYCLE CMD_LCYCLE
-#define RUN_CYCLE CMD_RCYCLE
-
-/*
-#define LOAD_FILE "/home/yumin/real_trace/msr_16/16G_web.out"
-#define RUN_FILE  "/home/yumin/real_trace/linkbench_16/link_run_16.out"
 #define LOAD_CYCLE 1
-#define RUN_CYCLE 0 
-*/
+#define RUN_CYCLE 1
+
 #define BLK_NUM 8
 MeasureTime *bt;
 MeasureTime *st;
@@ -56,12 +50,7 @@ int main(int argc, char *argv[]) {
 	double cal_len;
 	struct sigaction sa;
 	uint64_t c_number = 0;
-	/*
-	pritnf("### LOAD_FILE: %s ###\n", LOAD_FILE);
-	pritnf("### RUN_FILE: %s ###\n", RUN_FILE);
-	pritnf("### LOAD_CYCLE: %d ###\n", LOAD_CYCLE);
-	pritnf("### RUN_CYCLE: %d ###\n", RUN_CYCLE);
-*/
+
 	//sa.sa_handler = log_print;
 	//sigaction(SIGINT, &sa, NULL);
 	bt = (MeasureTime *)malloc(sizeof(MeasureTime));
@@ -80,43 +69,25 @@ int main(int argc, char *argv[]) {
 	dummy.dmatag=-1;
 	dummy.length=PAGESIZE;
 	*/
-	
-	if(argc < 2){
-		printf("File input error!\n");
-		exit(0);
-	}
-	
-	printf("%s load start!\n",argv[1]);
-	w_fp = fopen(argv[1], "r");
+	printf("%s load start!\n",LOAD_FILE);
+	w_fp = fopen(LOAD_FILE, "r");
 	if (w_fp == NULL) {
 		printf("No file\n");
 		return 1;
 	}
 
 	//Set sequential write for GC
-	/*		
-	int32_t set_range = RANGE;
+/*		
+	int32_t set_range = RANGE * 0.7;
 	for(int i = 0 ; i < set_range; i++){
 		inf_make_req(FS_SET_T, i, t_value, PAGESIZE, 0);
 	}
-	*/
-	/*
-	set_range = set_range;
-	for(int i = 0 ; i < set_range; i++){
-		int ran_set = rand() % set_range;
-		inf_make_req(FS_SET_T, i, t_value, PAGESIZE, 0);
-	}
-	*/
-
-	double time;	
-   
-	int32_t cnt = 0;
+  */  
+//	int32_t cnt = 0;
 	for(int i = 0; i < LOAD_CYCLE; i++){
 		printf("LOAD CYCLE : %d\n",i);
-		while (fscanf(w_fp, "%s %s %llu %lf %lf", command, type, &offset, &cal_len, &time) != EOF) {
-			cnt++;
-			if(cnt == 50000000)
-				break;
+		while (fscanf(w_fp, "%s %s %llu %lf", command, type, &offset, &cal_len) != EOF) {
+
 			if(command[0] == 'D'){
 				offset = offset / BLK_NUM;
 				len = ceil(cal_len / BLK_NUM);
@@ -154,14 +125,14 @@ int main(int argc, char *argv[]) {
 		}
 		fseek(w_fp,0,SEEK_SET);
 	}
-	printf("%s load complete!\n\n",argv[1]);
+	printf("%s load complete!\n\n",LOAD_FILE);
 	printf("Load write : %d\n",write_cnt);
 	printf("Load read  : %d\n",read_cnt);
 	
 	
 	fclose(w_fp);
-	printf("%s bench start!\n", argv[2]);
-	r_fp = fopen(argv[2], "r");
+	printf("%s bench start!\n", RUN_FILE);
+	r_fp = fopen(RUN_FILE, "r");
 #if !FILEBENCH_SET
 	if (r_fp == NULL) {
 		printf("No file\n");
@@ -222,7 +193,7 @@ int main(int argc, char *argv[]) {
 		fseek(r_fp,0,SEEK_SET);
 	}
 	measure_adding(bt);
-	printf("%s bench complete!\n",argv[2]);
+	printf("%s bench complete!\n",RUN_FILE);
 	fclose(r_fp);
 #endif
 	total_sec = bt->adding.tv_sec + (float)bt->adding.tv_usec/1000000;
@@ -235,7 +206,6 @@ int main(int argc, char *argv[]) {
 	printf("read throughput: %.2fMB/s\n", (float)real_r_cnt*8192/total_sec/1000/1000);
 	printf("write throughput: %.2fMB/s\n", (float)real_w_cnt*8192/total_sec/1000/1000);
 	printf("total_throughput: %.2fMB/s\n",(float)req_t_cnt*8192/total_sec/1000/1000);
-	/*
 	printf("CDF for bench trace!\n");
 	for(int i = 0; i < 1000000/TIMESLOT+1; i++){
 		c_number += trace_cdf[i];
@@ -244,7 +214,6 @@ int main(int argc, char *argv[]) {
 		if(real_r_cnt == c_number)
 			break;
 	}
-	*/
 	free(bt);
 	free(st);
 	sleep(5);

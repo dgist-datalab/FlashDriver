@@ -77,8 +77,8 @@ extern H_OOB *hash_oob;
 
 extern h_table *p_table;
 extern v_table *g_table;
-extern int32_t write_cnt;
-extern int32_t read_cnt;
+extern int32_t algo_write_cnt;
+extern int32_t algo_read_cnt;
 extern int32_t gc_write;
 extern int32_t gc_read;
 extern int32_t block_erase_cnt;

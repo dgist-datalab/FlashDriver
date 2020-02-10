@@ -33,6 +33,8 @@
 #define MAX_RB 2
 #define S_BIT (MAX_RB/2)
 
+#define OFFSET_MODE 0          //Zone-based BloomFTL
+#define HASH_MODE 1	       //Decide superblock by hash
 #define SUPERBLK_GC 0
 #define REBLOOM 1
 #define OOR (RANGE+1)
@@ -197,7 +199,7 @@ void set_bf(uint32_t, uint32_t, uint32_t);
 void reset_cur_idx(uint32_t);
 
 uint32_t table_lookup(uint32_t, bool);
-int64_t bf_lookup(uint32_t, uint32_t, uint8_t, bool);
+int64_t bf_lookup(uint32_t, uint32_t, uint32_t, uint8_t, bool);
 uint32_t check_first(uint32_t);
 
 
@@ -267,9 +269,11 @@ static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
     uint8_t chunk_sz = length > end_bit + 1 ? end_bit + 1 : length;
     bf_bits = bf->base_bf[p_idx].bf_bits;
 
+#if OFFSET_MODE
+	h = hashfunction(hashed_key) % bf_bits;
+#else
 	h = hashed_key % bf_bits;
-//	h = hashfunction(hashed_key) % bf_bits;
-
+#endif
     // 1
     if(end_bit == 7) {
         if(((h & ((1 << chunk_sz) - 1)) ^ (b_table[pbn].bf_arr[end_byte] >> (8 - chunk_sz)))) {

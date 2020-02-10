@@ -138,8 +138,11 @@ uint32_t ppa_alloc(uint32_t lba){
 	uint32_t pre_lba, rb_cnt;
 #endif
 	//superblk = lba / mask;
+#if HASH_MODE
+	superblk = hashing_key(lba>>S_BIT) % nos;
+#else
 	superblk = (lba >> S_BIT) % nos;
-
+#endif
 //	printf("LBA : %d\n",lba);
 	//	struct timeval start, end;
 
@@ -225,8 +228,15 @@ uint32_t ppa_alloc(uint32_t lba){
 
 uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
 	//uint32_t superblk = lba / mask;
-	uint32_t superblk = (lba >> S_BIT) % nos;
+	uint32_t superblk;
 	uint32_t hashkey, bf_idx;
+	
+#if HASH_MODE
+	superblk = hashing_key(lba>>S_BIT) % nos;
+#else
+	superblk = (lba>>S_BIT) % nos;
+#endif
+	
 	hashkey = hashing_key(lba);
 
 
@@ -235,11 +245,11 @@ uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
 	sb[superblk].p_flag[f_idx] = 1;
 
 	sb[superblk].bf_page[s_p_idx].s_idx = bf_idx;
-	
-	//set_bf(hashkey + s_p_idx, superblk, s_p_idx);
-	
+#if OFFSET_MODE
+	set_bf(hashkey + s_p_idx, superblk, s_p_idx);
+#else
 	set_bf(hashkey,superblk,s_p_idx);
-
+#endif
 	b_table[superblk].bf_num++;
 
 	lba_bf[lba] = 1;
@@ -255,8 +265,11 @@ uint32_t check_first(uint32_t lba){
 	uint32_t ppa = 0;
 	uint32_t oob;
 	//superblk = lba / mask;
+#if HASH_MODE
+	superblk = hashing_key(lba>>S_BIT) % nos;
+#else
 	superblk = (lba >> S_BIT) % nos;
-	
+#endif
 	int32_t full = b_table[superblk].full;
 	for(int i = 0; i < full; i++){
 		if(sb[superblk].p_flag[i]){
@@ -289,9 +302,11 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 	register uint32_t hashkey;
 	uint32_t b_idx, b_offset, s_p_idx;
 #endif	
-	
-	//superblk = lba / mask;
+#if HASH_MODE
+	superblk = hashing_key(lba>>S_BIT) % nos;
+#else
 	superblk = (lba >> S_BIT) % nos;
+#endif
 	full = b_table[superblk].full;
 
 #if !REBLOOM
@@ -319,7 +334,7 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 	bits_len = 0;
 	for(int i = full-1; i >=0; i--){
 		if(sb[superblk].p_flag[i]){
-			ppa = bf_lookup(lba, i, bits_len, flag);
+			ppa = bf_lookup(superblk,lba, i, bits_len, flag);
 			if(ppa != -1){
 				break;
 			}
@@ -346,11 +361,11 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 	return ppa;	
 
 }
-int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len, bool flag)
+int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits_len, bool flag)
 {
 	Block *block;
 	register uint32_t hashkey;
-	uint32_t superblk, oob;
+	uint32_t oob;
 	uint32_t b_idx, b_offset;
 	uint32_t s_p_idx;
 	int32_t f_offset = f_idx;
@@ -359,7 +374,7 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len, bool flag)
 	
 	uint32_t check_offset, c_range;
 
-	superblk = (lba >> S_BIT) % nos;
+
 	hashkey  = hashing_key(lba);
 	b_idx    = f_offset / ppb;
 	b_offset = f_offset % ppb;
@@ -367,22 +382,28 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len, bool flag)
 	s_p_idx  = ((block->PBA * ppb) + b_offset) % pps;
 	ppa      = (block->PBA * ppb) + b_offset;
 	/*CASE 1 : If lba is head of coalesced lba */
-	if(get_bf(hashkey, superblk, s_p_idx)){
-		oob = bloom_oob[ppa].lba;
-		if(oob == lba){
-			if(flag)
-				found_cnt++;
-			else
-				gc_read++;
-			return ppa;
-		}else{
-			if(flag)
-				not_found_cnt++;
-			else
-				gc_read++;
+
+	if(lba_bf[lba] != 0){
+#if OFFSET_MODE
+		if(get_bf(hashkey + s_p_idx, superblk, s_p_idx)){
+#else
+		if(get_bf(hashkey, superblk, s_p_idx)){
+#endif
+			oob = bloom_oob[ppa].lba;
+			if(oob == lba){
+				if(flag)
+					found_cnt++;
+				else
+					gc_read++;
+				return ppa;
+			}else{
+				if(flag)
+					not_found_cnt++;
+				else
+					gc_read++;
+			}
 		}
 	}
-
 	if(bits_len == 0)
 		return -1;
 
@@ -397,7 +418,11 @@ int64_t bf_lookup(uint32_t lba, uint32_t f_idx,  uint8_t bits_len, bool flag)
 
 	for(int i = 1; i < c_range+1; i++){
 		hashkey = hashing_key(lba-i);
+#if OFFSET_MODE
+		if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
+#else
 		if(get_bf(hashkey, superblk, s_p_idx)){
+#endif
 			check_offset = f_offset + i;
 			if(check_offset >= pps)
 				continue;
@@ -550,9 +575,11 @@ void set_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx){
 
 
     bf_bits = bf->base_bf[p_idx].bf_bits;
+#if OFFSET_MODE
+	h = hashfunction(hashed_key) % bf_bits;
+#else
 	h = hashed_key % bf_bits;
-	// h = hashfunction(hashed_key) % bf_bits;
-
+#endif
 
     if(end_bit == 7){
         b_table[pbn].bf_arr[end_byte] |= h << (8 - chunk_sz);

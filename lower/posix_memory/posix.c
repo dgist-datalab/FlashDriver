@@ -313,7 +313,7 @@ void *posix_pull_data(KEYT PPA, uint32_t size, value_set* value, bool async,algo
 
 	if(req->type <=GCMW){
 		PTR loc = seg_table[PPA/my_posix.PPS].storage;
-		memcpy(value->value,&loc[(PPA%my_posix.PPS)*my_posix.SOP],size);
+		//memcpy(value->value,&loc[(PPA%my_posix.PPS)*my_posix.SOP],size);
 		req->type_lower=1;
 	}
 

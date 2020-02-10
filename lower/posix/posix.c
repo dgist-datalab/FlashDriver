@@ -65,14 +65,14 @@ void *posix_refresh(lower_info *li){
 void *posix_destroy(lower_info *li){
 
 	printf("TRIM\t%lu\n", li->req_type_cnt[0]);
-	printf("TR\t%lu\n", li->req_type_cnt[5]);
+	printf("TR\t%lu\n", li->req_type_cnt[1]);
 	printf("TW\t%lu\n", li->req_type_cnt[2]);
-	printf("TGCR\t%lu\n", li->req_type_cnt[7]);
-	printf("TGCW\t%lu\n", li->req_type_cnt[8]);
-	printf("DR\t%lu\n", li->req_type_cnt[1]);
+	printf("TGCR\t%lu\n", li->req_type_cnt[3]);
+	printf("TGCW\t%lu\n", li->req_type_cnt[4]);
+	printf("DR\t%lu\n", li->req_type_cnt[5]);
 	printf("DW\t%lu\n", li->req_type_cnt[6]);
-	printf("DGCR\t%lu\n", li->req_type_cnt[3]);
-	printf("DGCW\t%lu\n\n", li->req_type_cnt[4]);
+	printf("DGCR\t%lu\n", li->req_type_cnt[7]);
+	printf("DGCW\t%lu\n\n", li->req_type_cnt[8]);
 
 	printf("Total Read Traffic : %lu\n", li->req_type_cnt[1]+li->req_type_cnt[3]+li->req_type_cnt[5]+li->req_type_cnt[7]);
 	printf("Total Write Traffic: %lu\n\n", li->req_type_cnt[2]+li->req_type_cnt[4]+li->req_type_cnt[6]+li->req_type_cnt[8]);

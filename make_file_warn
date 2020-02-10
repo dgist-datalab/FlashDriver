@@ -1,0 +1,148 @@
+include/slab.c: In function ‘void kmem_cache_grow(kmem_cache_t)’:
+include/slab.c:69:34: warning: pointer of type ‘void *’ used in arithmetic [-Wpointer-arith]
+         slab = (kmem_slab_t)(mem + PAGE_SZ - sizeof(struct kmem_slab));
+include/slab.c:69:44: warning: pointer of type ‘void *’ used in arithmetic [-Wpointer-arith]
+         slab = (kmem_slab_t)(mem + PAGE_SZ - sizeof(struct kmem_slab));
+                              ~~~~~~~~~~~~~~^~~~~~~~~
+include/slab.c:76:23: warning: pointer of type ‘void *’ used in arithmetic [-Wpointer-arith]
+         lastbuf = mem + (cp->effsize * (cp->slab_maxbuf-1));
+                   ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+include/slab.c:77:35: warning: pointer of type ‘void *’ used in arithmetic [-Wpointer-arith]
+         for (p=mem; p < lastbuf; p+=cp->effsize)
+                                  ~^~~~~~~~~~~~~
+include/slab.c:78:32: warning: pointer of type ‘void *’ used in arithmetic [-Wpointer-arith]
+              *((void **)p) = p + cp->effsize;
+                              ~~^~~~~~~~~~~~~
+include/slab.c:108:33: warning: pointer of type ‘void *’ used in arithmetic [-Wpointer-arith]
+             bufctl[i].buf = mem + (i*cp->effsize + (PAGE_SZ%cp->effsize * (((i+1)*cp->effsize)/PAGE_SZ)));
+                             ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+include/slab.c: In function ‘void kmem_cache_free(kmem_cache_t, void*)’:
+include/slab.c:172:33: warning: pointer of type ‘void *’ used in arithmetic [-Wpointer-arith]
+         slab =(kmem_slab_t)(mem + PAGE_SZ - sizeof(struct kmem_slab));
+include/slab.c:172:43: warning: pointer of type ‘void *’ used in arithmetic [-Wpointer-arith]
+         slab =(kmem_slab_t)(mem + PAGE_SZ - sizeof(struct kmem_slab));
+                             ~~~~~~~~~~~~~~^~~~~~~~~
+include/slab.c: In function ‘void kmem_cache_destroy(kmem_cache_t)’:
+include/slab.c:226:31: warning: pointer of type ‘void *’ used in arithmetic [-Wpointer-arith]
+             mem = (void*)slab - PAGE_SZ + sizeof(struct kmem_slab);
+include/slab.c:226:41: warning: pointer of type ‘void *’ used in arithmetic [-Wpointer-arith]
+             mem = (void*)slab - PAGE_SZ + sizeof(struct kmem_slab);
+                   ~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+interface/bb_checker.c: In function ‘void bb_checker_start(lower_info*)’:
+interface/bb_checker.c:13:26: warning: format ‘%ld’ expects argument of type ‘long int’, but argument 2 has type ‘double’ [-Wformat=]
+  printf("_nos:%ld\n",_NOS);
+                          ^
+At global scope:
+cc1plus: warning: unrecognized command line option ‘-Wno-pointer-arit\x09’
+At global scope:
+cc1plus: warning: unrecognized command line option ‘-Wno-pointer-arit\x09’
+interface/interface.c:421:17: warning: ‘request* inf_get_multi_req_instance(uint8_t, uint32_t*, char**, int*, int, int, bool)’ defined but not used [-Wunused-function]
+ static request *inf_get_multi_req_instance(const FSTYPE type, KEYT *keys, char **_value, int *len,int req_num,int mark, bool fromApp){
+                 ^~~~~~~~~~~~~~~~~~~~~~~~~~
+include/data_struct/demand_hash.c: In function ‘int32_t hash_rebuild_table(hash_t*)’:
+include/data_struct/demand_hash.c:53:10: warning: unused variable ‘bucket_idx’ [-Wunused-variable]
+  int32_t bucket_idx;
+          ^~~~~~~~~~
+include/data_struct/demand_hash.c: In function ‘hash_node* hash_insert(hash_t*, uint32_t, int32_t, int8_t)’:
+include/data_struct/demand_hash.c:133:10: warning: unused variable ‘tmp’ [-Wunused-variable]
+  int32_t tmp, h;
+          ^~~
+include/data_struct/demand_hash.c:135:10: warning: variable ‘res’ set but not used [-Wunused-but-set-variable]
+  int32_t res;
+          ^~~
+include/data_struct/demand_hash.c: In function ‘int32_t hash_update_delete(hash_t*, hash_node*)’:
+include/data_struct/demand_hash.c:237:13: warning: unused variable ‘node’ [-Wunused-variable]
+  hash_node *node, *last;
+             ^~~~
+At global scope:
+cc1plus: warning: unrecognized command line option ‘-Wno-pointer-arit\x09’
+bench/bench.c: In function ‘void bench_init()’:
+bench/bench.c:92:43: warning: format ‘%ld’ expects argument of type ‘long int’, but argument 2 has type ‘double’ [-Wformat=]
+  printf("bench:%ld\n",TOTALSIZE/PAGESIZE/8);
+                                           ^
+bench/bench.c: In function ‘void bench_print()’:
+bench/bench.c:271:34: warning: format ‘%d’ expects argument of type ‘int’, but argument 2 has type ‘uint64_t {aka long unsigned int}’ [-Wformat=]
+   printf("m_num : %d\n",_m->m_num);
+                         ~~~~~~~~~^
+cc1plus: warning: unrecognized command line option ‘-Wno-pointer-arit\x09’
+At global scope:
+cc1plus: warning: unrecognized command line option ‘-Wno-pointer-arit\x09’
+dftl.c: In function ‘void print_algo_log()’:
+dftl.c:170:57: warning: format ‘%d’ expects argument of type ‘int’, but argument 2 has type ‘uint64_t {aka long unsigned int}’ [-Wformat=]
+  printf(" | Write buffer size:      %d\n", max_write_buf);
+                                                         ^
+tp_utils.c: In function ‘int32_t cache_mapped_size()’:
+tp_utils.c:554:21: warning: variable ‘ent’ set but not used [-Wunused-but-set-variable]
+  struct entry_node *ent = NULL;
+                     ^~~
+dftl.c: In function ‘void demand_destroy(lower_info*, algorithm*)’:
+dftl.c:352:61: warning: unknown conversion type character ‘)’ in format [-Wformat=]
+  printf("real_t_miss_ratio (%) : %.2lf%\n",real_t_miss_ratio);
+                                                             ^
+dftl.c:352:61: warning: unknown conversion type character ‘\x0a’ in format [-Wformat=]
+dftl.c:353:61: warning: unknown conversion type character ‘)’ in format [-Wformat=]
+  printf("real_r_miss_ratio (%) : %.2lf%\n",real_r_miss_ratio);
+                                                             ^
+dftl.c:353:61: warning: unknown conversion type character ‘\x0a’ in format [-Wformat=]
+dftl.c:354:61: warning: unknown conversion type character ‘)’ in format [-Wformat=]
+  printf("real_w_miss_ratio (%) : %.2lf%\n",real_w_miss_ratio);
+                                                             ^
+dftl.c:354:61: warning: unknown conversion type character ‘\x0a’ in format [-Wformat=]
+dftl.c:378:59: warning: unknown conversion type character ‘)’ in format [-Wformat=]
+  printf("total_miss_ratio (%) : %.2lf%\n",total_miss_ratio);
+                                                           ^
+dftl.c:378:59: warning: unknown conversion type character ‘\x0a’ in format [-Wformat=]
+dftl.c:379:58: warning: unknown conversion type character ‘)’ in format [-Wformat=]
+  printf("read_miss_ratio  (%) : %.2lf%\n",read_miss_ratio);
+                                                          ^
+dftl.c:379:58: warning: unknown conversion type character ‘\x0a’ in format [-Wformat=]
+dftl.c:380:59: warning: unknown conversion type character ‘)’ in format [-Wformat=]
+  printf("write_miss_ratio (%) : %.2lf%\n",write_miss_ratio);
+                                                           ^
+dftl.c:380:59: warning: unknown conversion type character ‘\x0a’ in format [-Wformat=]
+dftl.c: In function ‘uint32_t demand_cache_update(request*, char)’:
+dftl.c:436:10: warning: unused variable ‘t_ppa’ [-Wunused-variable]
+  int32_t t_ppa = c_table->t_ppa;
+          ^~~~~
+dftl.c: In function ‘uint32_t demand_write_flying(request*, char)’:
+dftl.c:564:13: warning: unused variable ‘dummy_vs’ [-Wunused-variable]
+  value_set *dummy_vs;
+             ^~~~~~~~
+dftl.c:565:12: warning: unused variable ‘temp_req’ [-Wunused-variable]
+  algo_req *temp_req;
+            ^~~~~~~~
+dftl.c: In function ‘uint32_t __demand_set(request*)’:
+dftl.c:1017:22: warning: unused variable ‘check’ [-Wunused-variable]
+   struct entry_node *check = (struct entry_node *)c_table->last_ptr->DATA;
+                      ^~~~~
+dftl.c:889:11: warning: unused variable ‘iter’ [-Wunused-variable]
+  sk_iter *iter;
+           ^~~~
+dftl.c:891:14: warning: variable ‘is_flush’ set but not used [-Wunused-but-set-variable]
+  static bool is_flush = false;
+              ^~~~~~~~
+dftl.c: In function ‘uint32_t demand_eviction(request*, char, bool*, bool*)’:
+dftl.c:1314:21: warning: unused variable ‘t_ptr’ [-Wunused-variable]
+  struct entry_node *t_ptr = NULL;
+                     ^~~~~
+dftl.c: In function ‘uint32_t demand_hit_eviction(request*, char, bool*, bool*)’:
+dftl.c:1419:10: warning: unused variable ‘evic_size’ [-Wunused-variable]
+  int32_t evic_size = 0;
+          ^~~~~~~~~
+dftl.c:1420:11: warning: unused variable ‘c_table’ [-Wunused-variable]
+  C_TABLE *c_table = &CMT[D_IDX];
+           ^~~~~~~
+At global scope:
+cc1plus: warning: unrecognized command line option ‘-Wno-pointer-arit\x09’
+At global scope:
+cc1plus: warning: unrecognized command line option ‘-Wno-pointer-arit\x09’
+ar: creating libdriver.a
+interface/t_main.c: In function ‘int main(int, char**)’:
+interface/t_main.c:57:19: warning: unused variable ‘sa’ [-Wunused-variable]
+  struct sigaction sa;
+                   ^~
+interface/t_main.c:58:11: warning: unused variable ‘c_number’ [-Wunused-variable]
+  uint64_t c_number = 0;
+           ^~~~~~~~
+At global scope:
+cc1plus: warning: unrecognized command line option ‘-Wno-pointer-arit\x09’

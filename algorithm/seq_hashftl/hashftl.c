@@ -18,8 +18,8 @@ Block **shared_block;
 h_table *p_table;
 v_table *g_table;
 
-int32_t write_cnt;
-int32_t read_cnt;
+int32_t algo_write_cnt;
+int32_t algo_read_cnt;
 int32_t gc_write;
 int32_t gc_read;
 int32_t block_erase_cnt;
@@ -147,15 +147,15 @@ uint32_t hash_create(lower_info *li, algorithm *algo){
 void hash_destroy(lower_info *li, algorithm *algo){
 	double memory;
 	printf("--------- Benchmark Result ---------\n\n");
-    printf("Total request  I/O count : %d\n",write_cnt+read_cnt);
-    printf("Total write    I/O count : %d\n",write_cnt);
-    printf("Total read     I/O count : %d\n",read_cnt);
+    printf("Total request  I/O count : %d\n",algo_write_cnt+algo_read_cnt);
+    printf("Total write    I/O count : %d\n",algo_write_cnt);
+    printf("Total read     I/O count : %d\n",algo_read_cnt);
     printf("Total GC write I/O count : %d\n",gc_write);
     printf("Total GC read  I/O count : %d\n",gc_read);
 	printf("Total Not found count    : %d\n",not_found_cnt);
 	printf("Total erase count        : %d\n",block_erase_cnt);
-	if(write_cnt != 0)
-		printf("Total WAF  : %.2lf\n",(float) (write_cnt+gc_write) / write_cnt);
+	if(algo_write_cnt != 0)
+		printf("Total WAF  : %.2lf\n",(float) (algo_write_cnt+gc_write) / algo_write_cnt);
 
 	memory = (double) ((lnp * 10)/8 + (lnb * 4));
 	printf("Mapping memory Requirement (MB) : %.2lf\n",memory/1024/1024);
@@ -227,7 +227,7 @@ uint32_t hash_write(request* const req){
 //	block = &bm->block[pba];
 
 
-	write_cnt++;
+	algo_write_cnt++;
 	return 1;
 }
 
@@ -270,7 +270,8 @@ uint32_t hash_read(request* const req){
 
 	
 	if(p_idx == -1){
-		printf("여기 ..?\n");
+		
+		req->end_req(req);
 		return 1;
 	}
 	
@@ -288,7 +289,7 @@ uint32_t hash_read(request* const req){
 
 
 
-	read_cnt++;
+	algo_read_cnt++;
 	return 1;
 }
 

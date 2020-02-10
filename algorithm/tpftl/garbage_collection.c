@@ -260,19 +260,34 @@ int32_t dpage_GC(){
     NODE *c_ptr = lru->head;
     NODE *e_ptr = NULL;
     while(c_ptr != NULL){
-	    c_table = (C_TABLE *)c_ptr->DATA;
-	    e_ptr = c_table->entry_lru->head;
-	    while(e_ptr != NULL){
-		    struct entry_node *ent_node = (struct entry_node *)e_ptr->DATA;
-		    int32_t head_lpn = ent_node->p_index;
-		    int32_t p_idx = head_lpn;
-		    ent_node->ppa = c_table->p_table[p_idx].ppa;
-		    e_ptr = e_ptr->next;
-	    }
-	    c_ptr = c_ptr->next;
+        c_table = (C_TABLE *)c_ptr->DATA;
+        e_ptr = c_table->entry_lru->head;
+        while(e_ptr != NULL){
+            struct entry_node *ent_node = (struct entry_node *)e_ptr->DATA;
+            int32_t head_lpn = ent_node->p_index;
+            int32_t p_idx = head_lpn;
+            int32_t head_ppa;
+            int32_t cnt = 0;
+            ent_node->ppa = c_table->p_table[p_idx].ppa;
+            head_ppa = ent_node->ppa;
+
+            for(int i = p_idx+1; i < EPP; i++){
+                if(head_ppa+1 == c_table->p_table[i].ppa){
+                    cnt++;
+                    head_ppa = c_table->p_table[i].ppa;
+                }else{
+                    break;
+                }
+				if(cnt == MAX_CNT)
+					break;
+            }
+            ent_node->cnt = cnt;
+            cnt = 0;
+            e_ptr = e_ptr->next;
+
+        }
+        c_ptr = c_ptr->next;
     }
-
-
 
     /* Write dpages */
     real_valid = 0;
