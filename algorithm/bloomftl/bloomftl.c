@@ -10,7 +10,6 @@ algorithm __bloomftl = {
 };
 
 BF *bf;
-BM_T *bm;
 BF_TABLE *b_table;
 B_OOB *bloom_oob;
 
@@ -74,13 +73,13 @@ uint32_t r_check;
 
 uint32_t g_cnt;
 
-uint32_t bloom_create(lower_info *li, algorithm *algo){
+uint32_t bloom_create(lower_info *li, blockmanager *bm,  algorithm *algo){
 
 
 	algo->li = li;
 	ppb = _PPB;
 	pps = ppb * SUPERBLK_SIZE;
-	//pps = _PPS*SUPERBLK_SIZE;
+	
 	//Set global bloomfilter
 	bf = bf_init(1, pps);
 
@@ -103,11 +102,8 @@ uint32_t bloom_create(lower_info *li, algorithm *algo){
 		prefetcher[i].sn = NULL;
 	}
 #endif
-	//nob = (lnp / mask);
-	//nob = (nob+1) * SUPERBLK_SIZE;
 	nob = _NOB;
 	nos = nob / SUPERBLK_SIZE;
-	//nop = nob * ppb;
 	nop = _NOP;
 
 	b_table = (BF_TABLE *)malloc(sizeof(BF_TABLE) * nos);

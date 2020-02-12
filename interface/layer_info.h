@@ -8,6 +8,8 @@ extern struct algorithm __badblock;
 extern struct algorithm __demand;
 extern struct algorithm page_ftl;
 extern struct algorithm algo_lsm;
+extern struct algorithm __bloomftl;
+
 
 //device layer
 extern struct lower_info memio_info;
@@ -45,14 +47,12 @@ static void layer_info_mapping(master_processor *mp,int argc, char **argv){
 	mp->algo=&algo_lsm;
 #elif defined(badblock)
 	mp->algo=&__badblock;
+#elif defined(bloomftl)
+	mp->algo=&__bloomftl;
 #endif
 	
 
-#if defined(partition) && !defined(Page_ftl)
-	mp->bm=&pt_bm;
-#else
 	mp->bm=&base_bm;
-#endif
 
 	mp->li->create(mp->li,mp->bm);
 #if defined(partition) && !defined(Page_ftl)

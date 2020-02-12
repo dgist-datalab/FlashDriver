@@ -47,16 +47,33 @@
 
 #elif defined(SLC)
 
-#define GIGAUNIT 64L
-#define TOTALSIZE (GIGAUNIT*G)
-#define OP 100
+
+/* BloomFTL configuration */ 
+#define GIGAUNIT 16L
+#define OPAREA 0.25 //OP area in Superblock
+
+
 #define REALSIZE (512L*G)
 #define DEVSIZE (64L * G)
 #define PAGESIZE (8*K)
+
+#define L_DEVICE (GIGAUNIT*G)
+#define L_PAGES (L_DEVICE / PAGESIZE)
+#define S_Z 4 //Blocks per Superblock
+
 #define _PPB (256)
+#define SUPER_PAGE (_PPB*S_Z)
+#define MASK ceil(SUPER_PAGE*(1-OPAREA));
+
+
+
+
 #define BPS (64)
 #define _PPS (_PPB*BPS)
 #define PUNIT (64)
+
+
+
 
 #endif
 

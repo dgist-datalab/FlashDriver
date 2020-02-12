@@ -128,7 +128,6 @@ extern algorithm __bloomftl;
 
 
 extern BF *bf;
-extern BM_T *bm;
 extern SBmanager *sb;
 extern G_manager *gm;
 extern G_manager *valid_p;
@@ -212,7 +211,7 @@ void all_ppa_flag(void);
 void single_ppa_flag(uint32_t);
 
 //bloomftl.c
-uint32_t bloom_create(lower_info *, algorithm *);
+uint32_t bloom_create(lower_info *, blockmanager *bm, algorithm *);
 void bloom_destroy(lower_info *, algorithm *);
 uint32_t bloom_write(request *const);
 uint32_t bloom_read(request *const);
