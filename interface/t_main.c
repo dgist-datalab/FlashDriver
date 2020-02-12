@@ -15,15 +15,15 @@
 
 //#define LOAD_FILE CMD_LFILE
 //#define RUN_FILE  CMD_RFILE
-#define LOAD_CYCLE CMD_LCYCLE
-#define RUN_CYCLE CMD_RCYCLE
+//#define LOAD_CYCLE CMD_LCYCLE
+//#define RUN_CYCLE CMD_RCYCLE
 
-/*
-#define LOAD_FILE "/home/yumin/real_trace/msr_16/16G_web.out"
-#define RUN_FILE  "/home/yumin/real_trace/linkbench_16/link_run_16.out"
+
+#define LOAD_FILE FSERVER_LOAD_16
+#define RUN_FILE  FSERVER_RUN_16
 #define LOAD_CYCLE 1
-#define RUN_CYCLE 0 
-*/
+#define RUN_CYCLE 1 
+
 #define BLK_NUM 8
 MeasureTime *bt;
 MeasureTime *st;

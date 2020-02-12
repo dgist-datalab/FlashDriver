@@ -44,8 +44,8 @@
 
 //Filebench
 
-#define FSERVER_LOAD_16     "/home/yumin/real_trace/filebench_16/fserver_load_16.out"
-#define FSERVER_RUN_16      "/home/yumin/real_trace/filebench_16/fserver_run_16.out"
+#define FSERVER_LOAD_16     "/mnt/yumin/home/yumin/real_trace/filebench_16/fserver_load_16.out"
+#define FSERVER_RUN_16      "/mnt/yuminhome/yumin/real_trace/filebench_16/fserver_run_16.out"
 
 #define VARMAIL_LOAD_16     "/home/yumin/real_trace/filebench_16/varmail_load_16.out"
 #define VARMAIL_RUN_16      "/home/yumin/real_trace/filebench_16/varmail_run_16.out"

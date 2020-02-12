@@ -197,7 +197,8 @@ uint32_t demand_create(lower_info *li, algorithm *algo){
 
     /* Cache control & Init */
 #if S_FTL
-	free_cache_size = ceil(PAGESIZE * 4006 * 0.235);
+	
+    	free_cache_size = ceil(PAGESIZE * 4096 * 0.235); 
 	total_cache_size = free_cache_size;
 	check_size = PAGESIZE * 0.8;
 	global_gc_flag = 0;
@@ -208,7 +209,7 @@ uint32_t demand_create(lower_info *li, algorithm *algo){
 	measure_init(sftl_bench_time);
 //	measure_init(evic_time);
 #endif
-	//num_max_cache = max_cache_entry; // max cache
+    //num_max_cache = max_cache_entry; // max cache
     //num_max_cache = 1; // 1 cache
 	//num_max_cache = max_cache_entry / 4; // 1/4 cache
     //num_max_cache = max_cache_entry / 20; // 5%
