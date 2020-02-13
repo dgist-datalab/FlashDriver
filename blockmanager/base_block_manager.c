@@ -187,6 +187,18 @@ void base_trim_segment (struct blockmanager* bm, __gsegment* gs, struct lower_in
 	free(gs);
 }
 
+
+void base_trim_block(struct blockmanager *bm, __block *b, struct lower_info *li){
+
+	li->trim_a_block(GETBLOCKPPA(b), ASYNC);
+	b->invalid_num = 0;
+	b->now = 0;
+	memset(b->bitset,0,_PPB/8);
+	memset(b->oob_list,0,sizeof(b->oob_list));
+
+	return ;
+}
+
 int base_populate_bit (struct blockmanager* bm, uint32_t ppa){
 	int res=1;
 	bbm_pri *p=(bbm_pri*)bm->private_data;

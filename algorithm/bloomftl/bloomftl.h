@@ -31,7 +31,7 @@
 #define MAX_RB 4	      //In Reblooming, max num of 
 #define S_BIT (MAX_RB/2)
 
-#define OFFSET_MODE 0          //Zone-based BloomFTL
+#define OFFSET_MODE 0          
 #define HASH_MODE 1	       //Decide superblock by hash
 #define REBLOOM 1	       //Reblooming flag
 #define OOR (RANGE+1)	      

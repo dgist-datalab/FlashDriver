@@ -66,10 +66,8 @@ void rebloom_op(uint32_t superblk){
 		block->p_offset++;	
 		b_table[superblk].full++;
 	}
-
-
-
 	b_table[superblk].pre_lba = d_ram[rb_valid_cnt-1].oob_ram;
+	
 	//Reset bloomfilter
 	b_table[superblk].bf_num = 0;
 	b_table[superblk].rb_cnt = 0;
@@ -80,6 +78,7 @@ void rebloom_op(uint32_t superblk){
 	reset_bf_table(superblk);	
 
 
+	//Init data structure for reblooming
 	for(int i = 0 ; i < pps ; i++){	
 		memset(gm[i].t_table, -1, sizeof(T_table));
 		if(gm[i].value != NULL){

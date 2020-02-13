@@ -83,11 +83,11 @@ int gc_compare(const void *a, const void *b){
 
 
 uint32_t ppa_alloc(uint32_t lba){
-	//Block *block;
+	Block *block;
 	uint32_t superblk, cur_idx; //for selected superblock and single block 
 	uint32_t p_idx, s_p_idx;    //p_idx : Page offset of sigle block, s_p_idx : Page offset of superblock
 	uint32_t invalid_ppa, ppa; 
-	uint32_t f_idx;		    //Current bloomfilter index
+	uint32_t f_idx;		    //Current set bloomfilter index
 #if REBLOOM
 	uint32_t pre_lba, rb_cnt;
 #endif
@@ -98,12 +98,16 @@ uint32_t ppa_alloc(uint32_t lba){
 	superblk = (lba >> S_BIT) % n_superblocks;
 #endif
 
-
+	/* Invalidate written ppa 
+	 *
+	 * This is better than all page read. You can change invalid policy
+	 *
+	 */
 	if(!lba_flag[lba])
 		lba_flag[lba] = 1;
 	else{
-	//	invalid_ppa = table_lookup(lba,0);
-	//	BM_InvalidatePage(bm, invalid_ppa);
+		invalid_ppa = table_lookup(lba,0);
+		BM_InvalidatePage(bm, invalid_ppa);
 	}
 
 
@@ -114,15 +118,15 @@ uint32_t ppa_alloc(uint32_t lba){
 		rebloom_op(superblk);
 	}
 #endif
-
+	//GC trigger
 	if(b_table[superblk].full == pps){
 		b_table[superblk].first = 0;
 		bloom_gc(superblk);
 	}else{
 		get_cur_block(superblk);
 	}
-	//Set real write location
 
+	//Set real write location
 	f_idx   = b_table[superblk].full;
 	cur_idx = b_table[superblk].c_block;
 	block   = b_table[superblk].b_bucket[cur_idx];
@@ -154,12 +158,12 @@ uint32_t ppa_alloc(uint32_t lba){
 
 
 
-	//ppa = (block->PBA * ppb) + p_idx;
-	//BM_ValidatePage(bm, ppa);
+	ppa = (block->PBA * ppb) + p_idx;
+	BM_ValidatePage(bm, ppa);
 	//Set valid & oob for block
 	bloom_oob[ppa].lba = lba;
 	
-	//block->p_offset++;
+	block->p_offset++;
 	b_table[superblk].full++;
 	
 	return ppa;
@@ -168,7 +172,6 @@ uint32_t ppa_alloc(uint32_t lba){
 
 
 uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
-	//uint32_t superblk = lba / mask;
 	uint32_t superblk;
 	uint32_t hashkey, bf_idx;
 	
@@ -179,7 +182,6 @@ uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
 #endif
 	
 	hashkey = hashing_key(lba);
-
 
 	bf_idx  = b_table[superblk].bf_num;	
 	
@@ -196,16 +198,22 @@ uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
 	lba_bf[lba] = 1;
 	return 1;
 }
+/* This function uses only when no reblooming 
+ * 
+ * Example. Physical page : 0 -> No bloomfilter.
+ * In this case, use only for sequential write/read benchmark.
+ * This function is not important.
+ *
+ * */
 
 uint32_t check_first(uint32_t lba){
 
-//	Block *block;
+	Block *block;
 	uint32_t superblk;
 	uint32_t b_idx, b_offset;
 	uint32_t f_offset = 0;
 	uint32_t ppa = 0;
 	uint32_t oob;
-	//superblk = lba / mask;
 #if HASH_MODE
 	superblk = hashing_key(lba>>S_BIT) % n_superblocks;
 #else
@@ -238,10 +246,10 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 	int64_t ppa =-1;
 	uint32_t superblk, full, oob;
 #if REBLOOM
-	uint8_t bits_len;
+	uint8_t bits_len; //Degree of sequentiality (1000, 1100, 1110,..)
 #else
 	register uint32_t hashkey;
-	uint32_t b_idx, b_offset, s_p_idx;
+	uint32_t b_idx, b_offset, s_p_idx; //Block index, block base page offset, superblock base page offset;
 #endif	
 #if HASH_MODE
 	superblk = hashing_key(lba>>S_BIT) % n_superblocks;
@@ -307,13 +315,13 @@ int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits
 	Block *block;
 	register uint32_t hashkey;
 	uint32_t oob;
-	uint32_t b_idx, b_offset;
-	uint32_t s_p_idx;
-	int32_t f_offset = f_idx;
+	uint32_t b_idx, b_offset;	//Block index and page offset in a superblock
+	uint32_t s_p_idx;		//superblock index
+	int32_t f_offset = f_idx;	//Current set bloomfilter index
 	int64_t ppa;	
-	uint8_t lsb_value;
+	uint8_t lsb_value;		//To check sequentiality (00, 01, 10, 11)
 	
-	uint32_t check_offset, c_range;
+	uint32_t check_offset, c_range; // Real superblock offset, coleasing max range
 
 
 	hashkey  = hashing_key(lba);
@@ -322,8 +330,8 @@ int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits
 	block    = b_table[superblk].b_bucket[b_idx];
 	s_p_idx  = ((block->PBA * ppb) + b_offset) % pps;
 	ppa      = (block->PBA * ppb) + b_offset;
+	
 	/*CASE 1 : If lba is head of coalesced lba */
-
 	if(lba_bf[lba] != 0){
 #if OFFSET_MODE
 		if(get_bf(hashkey + s_p_idx, superblk, s_p_idx)){
@@ -349,14 +357,12 @@ int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits
 		return -1;
 
 	lsb_value = lba % MAX_RB;
-
 	c_range = bits_len;
-//	printf("bis_len : %d\n",bits_len);
-//	printf("lsb_value : %d\n",lsb_value);
 	if(bits_len > lsb_value)
 		c_range = lsb_value;
 
 
+	/*CASE 2 : If lba is not head of coalesced lba */
 	for(int i = 1; i < c_range+1; i++){
 		hashkey = hashing_key(lba-i);
 #if OFFSET_MODE
@@ -369,7 +375,6 @@ int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits
 				continue;
 			oob = bloom_oob[ppa].lba;
 
-			//This hear real sub_read operation
 			if(oob == lba-i){	
 				f_offset = check_offset;
 				if(f_offset >= pps){
@@ -405,7 +410,8 @@ int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits
 	return -1;
 
 }
-#if !SUPERBLK_GC
+
+/* Function to find next empty block */
 uint32_t get_cur_block(uint32_t superblk){
 	Block *checker;
 	uint32_t cur_idx = b_table[superblk].c_block;
@@ -418,7 +424,8 @@ uint32_t get_cur_block(uint32_t superblk){
 	return 0;
 
 }
-#endif
+
+/* Function to find available block in a superblock */
 void reset_cur_idx(uint32_t superblk){
 
 	for(int i = 0; i < SUPERBLK_SIZE; i++){
@@ -430,6 +437,8 @@ void reset_cur_idx(uint32_t superblk){
 	}
 
 }
+
+/* Function for bloomfilter reset in a superblock */ 
 void reset_bf_table(uint32_t superblk){
 	Block **bucket = b_table[superblk].b_bucket;
 	Block *block;
@@ -458,7 +467,6 @@ void reset_bf_table(uint32_t superblk){
 				}else{
 					b_table[superblk].rb_cnt++;
 					sb[superblk].p_flag[f_offset] = 0;
-					//sb[superblk].lba_bf[lba_offset] = 0;
 					lba_bf[lba] = 0;
 				}
 				pre_lba = lba;
@@ -490,6 +498,8 @@ void reset_bf_table(uint32_t superblk){
 	return ;
 }
 
+
+/* Function for set bloomfilter, this made by Jiho */
 void set_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx){
     uint32_t bf_bits, h;
     int start = sb[pbn].bf_page[p_idx].s_idx;

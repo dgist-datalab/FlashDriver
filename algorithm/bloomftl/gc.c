@@ -27,8 +27,6 @@ uint32_t bloom_gc(uint32_t superblk){
 	//Select Greedy block
 	max_idx = 0;
 	max_invalid = bucket[max_idx]->Invalid;
-
-
 	for(int i = 1; i < SUPERBLK_SIZE; i++){
 		if(max_invalid < bucket[i]->Invalid){
 			max_invalid = bucket[i]->Invalid;
@@ -46,6 +44,7 @@ uint32_t bloom_gc(uint32_t superblk){
 		bucket[SUPERBLK_SIZE-1] = victim;
 	}
 
+	/* Valid page read */
 	for(int i = 0 ; i < victim->p_offset; i++){
 		ppa = (victim->PBA * ppb) + i;
 		if(BM_IsValidPage(bm, ppa)){
@@ -77,6 +76,8 @@ uint32_t bloom_gc(uint32_t superblk){
 
 	b_table[superblk].bf_num = 0;
 
+
+	/* Valid page write */
 	for(int i = 0; i < k; i++){
 		ppa = (victim->PBA * ppb) + victim->p_offset;
 		SRAM_unload(d_ram, ppa, i, GCDW);
@@ -145,8 +146,6 @@ int invalid_block(Block **bucket, int b_idx, uint32_t superblk){
 			}
 		}
 	}
-
-
 	while(data_gc_poll != k){} //polling for all page load	
 	qsort(gm, k, sizeof(G_manager), lba_compare);
 	check_g = gm[0];
@@ -172,6 +171,6 @@ int invalid_block(Block **bucket, int b_idx, uint32_t superblk){
 		}
 	}
 
-
 	return idx;
+
 }
