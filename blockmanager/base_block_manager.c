@@ -339,3 +339,9 @@ __block *base_pick_block(struct blockmanager *bm, uint32_t page_num){
 	return &p->base_block[GETBLOCKIDX(checker,page_num)];
 }
 
+
+
+
+
+/* blockmanager functions for BloomFTL */
+

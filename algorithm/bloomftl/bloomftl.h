@@ -16,8 +16,6 @@
 #include "../../include/container.h"
 #include "../../include/types.h"
 #include "../../include/dl_sync.h"
-#include "../../include/ftl_settings.h"
-#include "../blockmanager/BM.h"
 #include "../../interface/bb_checker.h"
 
 #ifdef W_BUFF
@@ -27,35 +25,35 @@
 
 #define TYPE uint8_t
 
-#define SYMMETRIC 1
-#define PR_SUCCESS 0.9
-#define SUPERBLK_SIZE 4
-#define MAX_RB 4
+#define SYMMETRIC 1		
+#define PR_SUCCESS 0.9	      //PR ratio
+#define SUPERBLK_SIZE 4	      //Block per Superblock
+#define MAX_RB 4	      //In Reblooming, max num of 
 #define S_BIT (MAX_RB/2)
 
 #define OFFSET_MODE 0          //Zone-based BloomFTL
 #define HASH_MODE 1	       //Decide superblock by hash
-#define REBLOOM 1
-#define OOR (RANGE+1)
+#define REBLOOM 1	       //Reblooming flag
+#define OOR (RANGE+1)	      
 
 /* bit pattern for BF lookup */
 
 //BF_INFO for each physical page
 typedef struct {
-	uint32_t bf_bits;
-	uint32_t s_bits;
+	uint32_t bf_bits;	//Total Bloomfilter bits
+	uint32_t s_bits;	//bit per entry
 }BF_INFO;
 
 
 //Data structure for BF
 typedef struct {
-    uint32_t k;
-    uint32_t m;
-    uint64_t targetsize;
-    int n;
-    float p;
-    char* body;
-    uint64_t start;
+	uint32_t k;
+	uint32_t m;
+	uint64_t targetsize;
+	int n;
+	float p;
+	char* body;
+	uint64_t start;
 	BF_INFO *base_bf;
 	uint32_t base_s_bits;
 	uint32_t base_s_bytes;
@@ -64,16 +62,16 @@ typedef struct {
 
 //Physical BF table
 typedef struct {
-	uint8_t *bf_arr;
-	uint32_t bf_num;
-	Block **b_bucket;
-	uint32_t c_block;
-	int32_t full;
+	uint8_t *bf_arr;	//Array for set bloomfilter
+	uint32_t bf_num;	//BF count of a superblock
+	__block **b_bucket;	//Single block pointer within superblock
+	uint32_t c_block;	//Use single block index
+	int32_t full;		//Used physical page count
 #if REBLOOM
-	uint32_t pre_lba;
-	uint32_t rb_cnt;
+	uint32_t pre_lba;	//Sequentiality check variable
+	uint32_t rb_cnt;	//Current sequentaility count in superblock
 #endif
-	bool first;
+	bool first;		//When no reblooming, use this variable
 }BF_TABLE;
 
 
@@ -82,8 +80,8 @@ typedef struct {
 }Index;
 
 typedef struct {
-	Index *bf_page;
-	bool *p_flag;			//If allocate BF on pyhsical page, set 1.
+	Index *bf_page;		//A BF location for physical page
+	bool *p_flag;		//If allocate BF on pyhsical page, set 1.
 	uint32_t num_s_bits;	//Num of total symbol bits (This is a total bits for Physical(Superblock) block)
 	uint32_t num_s_bytes;	//Num of total bytes converted total symbol bits into bytes
 }SBmanager;
@@ -125,29 +123,24 @@ struct prefetch_struct {
 
 
 extern algorithm __bloomftl;
+extern struct blockmanager *bloom_bm;
+extern __segment **g_seg;
 
 
-extern BF *bf;
+extern BF *bf;	
 extern SBmanager *sb;
 extern G_manager *gm;
 extern G_manager *valid_p;
-extern G_manager *write_p;
 
 #if REBLOOM
 extern G_manager *rb;
 extern G_manager *re_list;
-
 #endif
+
 extern BF_TABLE *b_table;
 extern bool *lba_flag;
 extern bool *lba_bf;
 extern B_OOB *bloom_oob;
-
-
-
-extern bool check_flag;
-extern int32_t check_cnt;
-
 
 extern uint32_t algo_write_cnt;
 extern uint32_t algo_read_cnt;
@@ -167,45 +160,57 @@ extern uint32_t sub_lookup_read;
 
 extern uint32_t lnb;
 extern uint32_t mask;
-
 extern int32_t nob;
 extern int32_t ppb;
 extern int32_t nop;
 extern int32_t lnp;
-extern int32_t nos;
+extern int32_t n_superblocks;
+extern int32_t n_segments;
 extern int32_t pps;
-extern uint32_t r_count;
 
-extern bool rb_flag;
-extern bool gc_flag;
 #if REBLOOM
 extern uint32_t r_check;
 #endif
 extern uint32_t g_cnt;
 
 //bloomftl_util.c
-
 int lba_compare(const void *, const void *);
 int gc_compare(const void *, const void *);
+
+
+
 uint32_t ppa_alloc(uint32_t);
+uint32_t table_lookup(uint32_t, bool);	//Function for BFs of superblock
+int64_t bf_lookup(uint32_t, uint32_t, uint32_t, uint8_t, bool); //Function to find correct BF
 
-void set_bf(uint32_t, uint32_t, uint32_t);
-void reset_cur_idx(uint32_t);
+//When not reblooming trigger, use this function
+/*
+ *  
+ *
+*/
+uint32_t check_first(uint32_t); 
 
-uint32_t table_lookup(uint32_t, bool);
-int64_t bf_lookup(uint32_t, uint32_t, uint32_t, uint8_t, bool);
-uint32_t check_first(uint32_t);
+
 
 
 algo_req* assign_pseudo_req(TYPE, value_set *, request *);
+
+/* Functions for valid copy in gc */
 value_set* SRAM_load(int64_t, int ,TYPE);
 void SRAM_unload(SRAM *, int64_t, int, TYPE);
 
 
-uint32_t get_cur_block(uint32_t);
-uint32_t set_bf_table(uint32_t, uint32_t, uint32_t);
+uint32_t get_cur_block(uint32_t); //Function to get current using single block 
+void reset_cur_idx(uint32_t);     //Among single blocks, pick empty block
 
+
+//Functions for bloomfilter set
+uint32_t set_bf_table(uint32_t, uint32_t, uint32_t); 
+void set_bf(uint32_t, uint32_t, uint32_t);
+
+//Function Bf table reset for a superblock after GC or Reblooming
 void reset_bf_table(uint32_t);
+
 //debugging.c
 void all_ppa_flag(void);
 void single_ppa_flag(uint32_t);
@@ -230,11 +235,15 @@ int invalid_block(Block **, int, uint32_t);
 #if REBLOOM
 //rebloom.c
 void rebloom_op(uint32_t);
-uint32_t rebloom_gc(SRAM *, int32_t *, int32_t *, uint32_t, uint32_t);
+
+//Function to erase victim single block in superblock, victim block selects in round-robin
+uint32_t rebloom_gc(SRAM *, int32_t *, int32_t *, uint32_t, uint32_t); 
+//Function to make reblooming lists in superblock
 uint32_t set_rebloom_list(int32_t);
+//Function to check valid/invalid for reblooming lists
 uint32_t check_rb_valid(SRAM *, int32_t);
 #endif
-//Hash functions
+
 static inline uint32_t hashfunction(uint32_t key) {
     key ^= key >> 15;
     key *= 2246822519U;
@@ -244,17 +253,16 @@ static inline uint32_t hashfunction(uint32_t key) {
 
     return key;
 }
+/* Fibonach hash */
 static inline uint32_t hashing_key(uint32_t key) {
     return (uint32_t)((0.618033887 * key) * 1024);
 }
-
+/* Function to check Symbolized BF in BF array, This made by Jiho */ 
 static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
     uint32_t bf_bits, h;
 
     int start = sb[pbn].bf_page[p_idx].s_idx;
-
-//	printf("start : %d\n",start);
-	int length = bf->base_bf[p_idx].s_bits;
+    int length = bf->base_bf[p_idx].s_bits;
     int end_byte = (start*length + length - 1) / 8;
     int end_bit = (start*length + length - 1) % 8;
     int symb_arr_sz = end_byte - ((start*length) / 8) + 1;

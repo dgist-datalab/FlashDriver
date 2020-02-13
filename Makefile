@@ -1,8 +1,8 @@
-export CC=gcc
+export CC=g++
 
 TARGET_INF=interface
 TARGET_LOWER=posix_memory
-TARGET_ALGO=Lsmtree
+TARGET_ALGO=bloomftl
 TARGET_BM=partition
 JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 

@@ -83,32 +83,27 @@ int gc_compare(const void *a, const void *b){
 
 
 uint32_t ppa_alloc(uint32_t lba){
-	Block *block;
-	uint32_t superblk, cur_idx;
-	uint32_t p_idx, s_p_idx;
-	uint32_t invalid_ppa, ppa;
-	uint32_t i_pbn, i_idx;
-	uint32_t f_idx;
-	int32_t block_full;
+	//Block *block;
+	uint32_t superblk, cur_idx; //for selected superblock and single block 
+	uint32_t p_idx, s_p_idx;    //p_idx : Page offset of sigle block, s_p_idx : Page offset of superblock
+	uint32_t invalid_ppa, ppa; 
+	uint32_t f_idx;		    //Current bloomfilter index
 #if REBLOOM
 	uint32_t pre_lba, rb_cnt;
 #endif
 	//superblk = lba / mask;
 #if HASH_MODE
-	superblk = hashing_key(lba>>S_BIT) % nos;
+	superblk = hashing_key(lba>>S_BIT) % n_superblocks;
 #else
-	superblk = (lba >> S_BIT) % nos;
+	superblk = (lba >> S_BIT) % n_superblocks;
 #endif
-	check_cnt++;
-	if(check_cnt >= RANGE){
-		check_flag = 1;
-	}
+
 
 	if(!lba_flag[lba])
 		lba_flag[lba] = 1;
 	else{
-		invalid_ppa = table_lookup(lba,0);
-		BM_InvalidatePage(bm, invalid_ppa);
+	//	invalid_ppa = table_lookup(lba,0);
+	//	BM_InvalidatePage(bm, invalid_ppa);
 	}
 
 
@@ -159,12 +154,12 @@ uint32_t ppa_alloc(uint32_t lba){
 
 
 
-	ppa = (block->PBA * ppb) + p_idx;
-	BM_ValidatePage(bm, ppa);
+	//ppa = (block->PBA * ppb) + p_idx;
+	//BM_ValidatePage(bm, ppa);
 	//Set valid & oob for block
 	bloom_oob[ppa].lba = lba;
 	
-	block->p_offset++;
+	//block->p_offset++;
 	b_table[superblk].full++;
 	
 	return ppa;
@@ -178,9 +173,9 @@ uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
 	uint32_t hashkey, bf_idx;
 	
 #if HASH_MODE
-	superblk = hashing_key(lba>>S_BIT) % nos;
+	superblk = hashing_key(lba>>S_BIT) % n_superblocks;
 #else
-	superblk = (lba>>S_BIT) % nos;
+	superblk = (lba>>S_BIT) % n_superblocks;
 #endif
 	
 	hashkey = hashing_key(lba);
@@ -204,7 +199,7 @@ uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
 
 uint32_t check_first(uint32_t lba){
 
-	Block *block;
+//	Block *block;
 	uint32_t superblk;
 	uint32_t b_idx, b_offset;
 	uint32_t f_offset = 0;
@@ -212,9 +207,9 @@ uint32_t check_first(uint32_t lba){
 	uint32_t oob;
 	//superblk = lba / mask;
 #if HASH_MODE
-	superblk = hashing_key(lba>>S_BIT) % nos;
+	superblk = hashing_key(lba>>S_BIT) % n_superblocks;
 #else
-	superblk = (lba >> S_BIT) % nos;
+	superblk = (lba >> S_BIT) % n_superblocks;
 #endif
 	int32_t full = b_table[superblk].full;
 	for(int i = 0; i < full; i++){
@@ -249,9 +244,9 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 	uint32_t b_idx, b_offset, s_p_idx;
 #endif	
 #if HASH_MODE
-	superblk = hashing_key(lba>>S_BIT) % nos;
+	superblk = hashing_key(lba>>S_BIT) % n_superblocks;
 #else
-	superblk = (lba >> S_BIT) % nos;
+	superblk = (lba >> S_BIT) % n_superblocks;
 #endif
 	full = b_table[superblk].full;
 

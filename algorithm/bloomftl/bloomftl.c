@@ -5,22 +5,30 @@ algorithm __bloomftl = {
 	.destroy = bloom_destroy,
 	.read    = bloom_read,
 	.write   = bloom_write,
-	//	.remove  = bloom_remove
+	//.remove  = bloom_remove
 	.remove = NULL
 };
 
 BF *bf;
-BF_TABLE *b_table;
-B_OOB *bloom_oob;
+struct blockmanager *bloom_bm;
+__segment **g_seg;
 
-SBmanager *sb;
-G_manager *gm;
+BF_TABLE *b_table;	//Global BF table
+B_OOB *bloom_oob;	//For OOB, but this will change by new blockmanager
+
+SBmanager *sb;		//BFs information for a superblock
+
+//Data structure for GC
+G_manager *gm;		
 G_manager *valid_p;
-G_manager *write_p;
+
+//Data structure for Reblooming
 #if REBLOOM
 G_manager *rb;
 G_manager *re_list;
 #endif
+
+//Variable to check set LBA, this can remove
 bool *lba_flag;
 bool *lba_bf;
 
@@ -31,43 +39,34 @@ uint32_t buf_idx;
 struct prefetch_struct *prefetcher;
 #endif
 
-
-bool check_flag;
-int32_t check_cnt;
-
+/* Variables for I/O count */
 uint32_t algo_write_cnt;
 uint32_t algo_read_cnt;
 uint32_t gc_write;
 uint32_t gc_read;
-
 volatile int32_t data_gc_poll;
-
 uint32_t block_erase_cnt;
 uint32_t found_cnt;
 uint32_t not_found_cnt;
 uint32_t rb_read_cnt;
 uint32_t rb_write_cnt;
-
 uint32_t sub_lookup_read;
 uint32_t remove_read;
 
 
-uint32_t lnb;
-uint32_t mask;
+uint32_t lnb;	       //Total num of logical block
+uint32_t mask;	       //Available num of page in superblock
+int32_t nob;	       //Num of block
+int32_t ppb;           //Page per block
+int32_t nop;	       //Num of physical page
+int32_t lnp;	       //Num of logical page
+int32_t n_superblocks; //Total num of superblock
+int32_t n_segments;    //Total num of segment
+int32_t pps;	       //Page per superblock
 
-int32_t nob;
-int32_t ppb;
-int32_t nop;
-int32_t lnp;
 
-uint32_t r_count;
 
-bool rb_flag;
-bool gc_flag;
-
-int32_t nos;
-int32_t pps;
-#if REBLOOM
+#if REBLOOiM
 uint32_t r_check;
 #endif
 
@@ -77,15 +76,13 @@ uint32_t bloom_create(lower_info *li, blockmanager *bm,  algorithm *algo){
 
 
 	algo->li = li;
-	ppb = _PPB;
-	pps = ppb * SUPERBLK_SIZE;
+	bloom_bm = bm;
 	
-	//Set global bloomfilter
+	/* Set block configuration & Global bloomfilter */
+	ppb = _PPB;
+	pps = SUPER_PAGES
 	bf = bf_init(1, pps);
 
-
-	//lnp = L_DEVICE / PAGESIZE;
-	//mask = ceil((pps * (1 - 0.07)));
 	lnp = L_PAGES;
 	mask = MASK;
 #if REBLOOM
@@ -102,12 +99,16 @@ uint32_t bloom_create(lower_info *li, blockmanager *bm,  algorithm *algo){
 		prefetcher[i].sn = NULL;
 	}
 #endif
-	nob = _NOB;
-	nos = nob / SUPERBLK_SIZE;
-	nop = _NOP;
 
-	b_table = (BF_TABLE *)malloc(sizeof(BF_TABLE) * nos);
-	sb = (SBmanager *)malloc(sizeof(SBmanager) * nos);
+	n_segments = _NOS;			
+	nob = _NOB;		 		
+	n_superblock = nob / SUPERBLK_SIZE;    
+	nop = _NOP;		   	
+
+	/* Set table for BloomFTL */
+
+	b_table = (BF_TABLE *)malloc(sizeof(BF_TABLE) * n_superblocks);
+	sb = (SBmanager *)malloc(sizeof(SBmanager) * n_superblocks);
 
 	lba_flag = (bool *)malloc(sizeof(bool) * lnp);	
 	lba_bf   = (bool *)malloc(sizeof(bool) * lnp);	
@@ -117,7 +118,7 @@ uint32_t bloom_create(lower_info *li, blockmanager *bm,  algorithm *algo){
 	memset(lba_bf, 0, sizeof(bool) * lnp);
 	memset(bloom_oob, -1, sizeof(B_OOB) * nop);
 
-	//GC data structure
+	/* Set data structure for GC */
 	gm = (G_manager *)malloc(sizeof(G_manager) * pps);	
 	valid_p = (G_manager *)malloc(sizeof(G_manager) * pps);
 
@@ -133,9 +134,9 @@ uint32_t bloom_create(lower_info *li, blockmanager *bm,  algorithm *algo){
 
 
 #if REBLOOM
+	/* Set data structure for Reblooming */
 
 	//When reblooming is trigger, use a bucket for coalesced pages 
-
 	rb = (G_manager *)malloc(sizeof(G_manager) * pps);
 	for(int i = 0 ; i < pps ; i++){
 		rb[i].t_table = (T_table *)malloc(sizeof(T_table) * MAX_RB);
@@ -157,7 +158,8 @@ uint32_t bloom_create(lower_info *li, blockmanager *bm,  algorithm *algo){
 	printf("---- BloomFTL (SINGLE) ----\n");
 	printf("Storage total Logical pages        : %d\n",lnp);
 	printf("Storage total Physical pages       : %d\n",nop);
-	printf("Storage total Superblocks          : %d\n",nos);
+	printf("Storage total segments		   : %d\n",n_segments);
+	printf("Storage total Superblocks          : %d\n",n_superblocks);
 	printf("Storage total Physical blocks      : %d\n",nob);
 	printf("Storage Data page per Singleblock  : %d\n",ppb);
 	printf("Storage Data page per Superblock   : %d\n",mask);
@@ -168,12 +170,12 @@ uint32_t bloom_create(lower_info *li, blockmanager *bm,  algorithm *algo){
 #endif
 
 	printf("Out-of-Range : %ld\n",OOR);
-	//Set BF table for physical blocks
-	for(int i = 0 ; i < nos; i++){
+	//Init BF table for physical blocks
+	for(int i = 0 ; i < n_superblocks; i++){
 		b_table[i].bf_arr = (uint8_t *)malloc(sizeof(uint8_t) * bf->base_s_bytes);	
 		memset(b_table[i].bf_arr, 0, sizeof(uint8_t) * bf->base_s_bytes);
 		b_table[i].bf_num = 0;	
-		b_table[i].b_bucket = (Block **)malloc(sizeof(Block *) * SUPERBLK_SIZE);
+		b_table[i].b_bucket = (__block **)malloc(sizeof(__block *) * SUPERBLK_SIZE);
 		b_table[i].c_block = 0;
 		b_table[i].full = 0;
 		b_table[i].first = 0;
@@ -192,15 +194,30 @@ uint32_t bloom_create(lower_info *li, blockmanager *bm,  algorithm *algo){
 
 	}
 
-	bm = BM_Init(nob, ppb, 0, 0);
 
-	for(int i = 0 ; i < nos; i++){
-		for(int j = 0; j < SUPERBLK_SIZE; j++){
-			b_table[i].b_bucket[j] = &bm->barray[i*SUPERBLK_SIZE+j];
-			if(b_table[i].b_bucket[j] == NULL)
-				printf("NULL ERROR!\n");
+
+	//Set blockmanager and physical blocks
+	bloom_bm->create(bm, li);
+	g_seg = (__segment **)malloc(sizeof(__segment *) * n_segments);
+	for(int i = 0 ; i < n_segments; i++){
+		g_seg[i] = get_segment(bm, 0);
+	}
+
+	int check_cnt=0, seg_idx=0;
+	for(int i = 0 ; i < n_superblocks; i++){
+		for(int j = 0 ; j < SUPERBLK_SIZE; j++){
+			if(check_cnt==BPS){
+				seg_idx++;
+				check_cnt = 0;
+			}
+			__block *g_block = bm->get_block(bm, g_seg[seg_idx]);
+			b_table[i].bucket[j] = g_block;
+			check_cnt++;
+			printf("block_id : %d\n",g_block->block_num);
+
 		}
 	}
+
 
 	return 1;
 
@@ -237,9 +254,11 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 #endif
 	}
 
-	//Table free
+	//Free table
 	bf_free(bf);
-	for(int i = 0 ; i < nos; i++){
+
+	//Calculate memory usage for BFs
+	for(int i = 0 ; i < n_superblocks; i++){
 		bf_memory   += (b_table[i].bf_num * 12) / 8; // for BF
 		flag_memory += (ppb*SUPERBLK_SIZE) / 8;
 		max_memory  += (512*12)/8;
@@ -282,14 +301,12 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 	free(re_list);
 #endif
 
-
-
 	free(gm);
 	free(valid_p);
 
 	//block Free
 	free(bloom_oob);
-	BM_Free(bm);
+	bm->destory(bm);
 
 #if W_BUFF
 	skiplist_free(write_buffer);
@@ -310,6 +327,8 @@ uint32_t bloom_write(request* const req){
 	static bool is_flush = false;
 
 #if W_BUFF
+
+	/* Use write buffer, this is same write buffer of DFTL */
 	if(write_buffer->size == max_write_buf){
 		for(size_t i = 0; i < max_write_buf; i++){
 			temp = prefetcher[i].sn;
@@ -422,7 +441,7 @@ uint32_t bloom_remove(request* const req){
 	__bloomftl.li->read(ppa, PAGESIZE, req->value, ASYNC, my_req);
 
 	remove_read++;
-	BM_InvalidatePage(bm, ppa);
+//	BM_InvalidatePage(bm, ppa);
 	bloom_oob[ppa].lba = -1;
 
 

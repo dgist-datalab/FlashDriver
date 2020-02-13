@@ -12,6 +12,9 @@
 #define GETPAGEIDX(value) ((value>>6)&0xff)
 #define GETBLOCKPPA(bl) (((bl)->block_num)+((bl)->punit_num))
 
+
+
+
 typedef struct channel{
 	queue *free_block;
 	mh *max_heap;

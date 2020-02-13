@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include<stdio.h>
 #include <string.h>
-
+#include <math.h>
 /*
 #define free(a) \
 	do{\
@@ -62,25 +62,25 @@
 #define S_Z 4 //Blocks per Superblock
 
 #define _PPB (256)
-#define SUPER_PAGE (_PPB*S_Z)
-#define MASK ceil(SUPER_PAGE*(1-OPAREA));
-
-
+#define SUPER_PAGES (_PPB*S_Z)
+#define MASK ceil(SUPER_PAGES*(1-OPAREA))
 
 
 #define BPS (64)
 #define _PPS (_PPB*BPS)
 #define PUNIT (64)
 
-
-
+#define _NOS ceil((ceil(L_PAGES/MASK)*S_Z)/BPS)
+#define _NOB (_NOS*BPS)
+#define _NOP (_NOB*_PPB)
+#define TOTALSIZE (_NOP*PAGESIZE)
 
 #endif
 
 #define BLOCKSIZE (_PPB*PAGESIZE)
-#define _NOP (TOTALSIZE/PAGESIZE)
-#define _NOS (TOTALSIZE/(_PPS*PAGESIZE))
-#define _NOB (BPS*_NOS)
+//#define _NOP (TOTALSIZE/PAGESIZE)
+//#define _NOS (TOTALSIZE/(_PPS*PAGESIZE))
+//#define _NOB (BPS*_NOS)
 #define _RNOS (REALSIZE/(_PPS*PAGESIZE))//real number of segment
 
 #define TOTALKEYNUM ((GIGAUNIT)*(G/PAGESIZE))

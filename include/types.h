@@ -20,7 +20,7 @@
 #define FS_BUSE_R 17
 #define FS_BUSE_W 18
 
-#define LREQ_TYPE_NUM 11
+#define LREQ_TYPE_NUM 13
 #define TRIM 0
 #define MAPPINGR 1
 #define MAPPINGW 2
@@ -30,8 +30,10 @@
 #define DATAW 6
 #define GCDR 7
 #define GCDW 8
-#define GCMR_DGC 9
-#define GCMW_DGC 10
+#define RBR 9
+#define RBW 10
+#define GCMR_DGC 11
+#define GCMW_DGC 12
 
 #define FS_MALLOC_W 1
 #define FS_MALLOC_R 2
