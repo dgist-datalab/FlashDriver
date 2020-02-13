@@ -26,41 +26,42 @@
 #define TYPE uint8_t
 
 #define SYMMETRIC 1		
-#define PR_SUCCESS 0.9	      //PR ratio
+#define PR_SUCCESS 0.9	      //PR ratio (1-fpr)
 #define SUPERBLK_SIZE 4	      //Block per Superblock
-#define MAX_RB 4	      //In Reblooming, max num of 
-#define S_BIT (MAX_RB/2)
+#define MAX_RB 4	      //In Reblooming, max num of entry
+#define S_BIT (MAX_RB/2)      //log((logical page size)/(physical page size)) -> coalasing bit
 
-#define OFFSET_MODE 0          
-#define HASH_MODE 1	       //Decide superblock by hash
-#define REBLOOM 1	       //Reblooming flag
-#define OOR (RANGE+1)	      
+#define HASH_MODE 1	       //Decide superblock by hash, if 0 -> decide superblock by shift operation
+#define REBLOOM 1	       //Reblooming enable flag 
+#define OOR (RANGE+1)	      //initial value for reblooming
 
 /* bit pattern for BF lookup */
 
 //BF_INFO for each physical page
 typedef struct {
-	uint32_t bf_bits;	//Total Bloomfilter bits
-	uint32_t s_bits;	//bit per entry
+	uint32_t bf_bits;	//number of total Bloomfilter bits
+	uint32_t s_bits;	//number of bits per entry
 }BF_INFO;
 
 
-//Data structure for BF
+//Data structure for BF, this structure is used for statistics such as memory usage
 typedef struct {
-	uint32_t k;
-	uint32_t m;
-	uint64_t targetsize;
-	int n;
-	float p;
-	char* body;
-	uint64_t start;
-	BF_INFO *base_bf;
+	uint32_t k; //# of functions , this must be 1
+	uint32_t m; //# of bits in a bloomfilter
+	uint64_t targetsize; //not use
+	int n; //# of entyr, this must be 1
+	float p; //fpr
+	char* body; //bits array
+	//uint64_t start;
+	BF_INFO *base_bf; 
 	uint32_t base_s_bits;
 	uint32_t base_s_bytes;
 } BF;
 
 
-//Physical BF table
+//BF table
+//oen bf table per one superblock
+
 typedef struct {
 	uint8_t *bf_arr;	//Array for set bloomfilter
 	uint32_t bf_num;	//BF count of a superblock
@@ -68,19 +69,23 @@ typedef struct {
 	uint32_t c_block;	//Use single block index
 	int32_t full;		//Used physical page count
 #if REBLOOM
-	uint32_t pre_lba;	//Sequentiality check variable
-	uint32_t rb_cnt;	//Current sequentaility count in superblock
+	/*this two variables are used only reblooming, they can be removed*/
+	//uint32_t pre_lba;	//Sequentiality check variable
+	//uint32_t rb_cnt;	//Current sequentaility count in superblock
 #endif
-	bool first;		//When no reblooming, use this variable
+	//bool first;		//When no reblooming, use this variable
 }BF_TABLE;
 
 
-typedef struct {
-	int32_t s_idx;
-}Index;
+//typedef struct {
+//	int32_t s_idx;
+//}Index;
 
+/*
+ * (S table in humantech paper)
+ * */
 typedef struct {
-	Index *bf_page;		//A BF location for physical page
+	//Index *bf_page;		//A BF location for physical page ????????
 	bool *p_flag;		//If allocate BF on pyhsical page, set 1.
 	uint32_t num_s_bits;	//Num of total symbol bits (This is a total bits for Physical(Superblock) block)
 	uint32_t num_s_bytes;	//Num of total bytes converted total symbol bits into bytes
@@ -91,36 +96,49 @@ typedef struct{
 	int32_t lba;
 }B_OOB;
 
-//Global struct for GC & Reblooming
+/*************Global struct for GC & Reblooming*********/
+
+/*
+ * one per lpa
+ * this is used at GC
+ * temporal buffer for data in a superblock
+ * */
 typedef struct {
-	int32_t lba;
-	int32_t ppa;
-	int32_t weight;
-	int32_t b_idx;
+	int32_t lba; 
+	int32_t ppa; 
+	int32_t weight;// for checking latest data
+	int32_t b_idx; // block index in superblock 
 }T_table;
 
+/*
+ *	write buffer for a physical page in GC
+ * */
 typedef struct SRAM{
-	int32_t oob_ram;
-	PTR ptr_ram;
+	int32_t oob_ram; //oob
+	PTR ptr_ram; //data
 }SRAM;
 
+
+
 typedef struct {	
-	T_table *t_table;
+	// T_table *t_table; // change it not to use pointer
 	value_set *value;
-	uint32_t size;
+	//uint32_t size; //not used maybe
 }G_manager;
 
-typedef struct bloom_params{
-	value_set *value;
-	dl_sync bloom_mutex;
+
+typedef struct bloom_params{ //paramater of algo_req
+	//value_set *value;  //not used maybe
+	//dl_sync bloom_mutex;
 	TYPE type;
 }bloom_params;
 
+/* maybe not used
 struct prefetch_struct {
 	uint32_t ppa;
 	snode *sn;
 };
-
+*/
 
 extern algorithm __bloomftl;
 extern struct blockmanager *bloom_bm;
@@ -257,6 +275,7 @@ static inline uint32_t hashfunction(uint32_t key) {
 static inline uint32_t hashing_key(uint32_t key) {
     return (uint32_t)((0.618033887 * key) * 1024);
 }
+
 /* Function to check Symbolized BF in BF array, This made by Jiho */ 
 static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
     uint32_t bf_bits, h;
