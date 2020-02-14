@@ -50,4 +50,8 @@ int base_get_page_num(struct blockmanager* ,__segment *);
 int base_pick_page_num(struct blockmanager* ,__segment *);
 
 uint32_t base_map_ppa(struct blockmanager* , uint32_t lpa);
+
+int base_get_page_num_from_block(struct blockmanager* ,__block *);
+void base_trim_block(struct blockmanager *, __block *, struct lower_info*);
+
 #endif

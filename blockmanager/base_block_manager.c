@@ -9,11 +9,14 @@ struct blockmanager base_bm={
 	.pick_block=base_pick_block,
 	.get_segment=base_get_segment,
 	.get_page_num=base_get_page_num,
+	.get_page_num_from_block=base_get_page_num_from_block,
+
 	.pick_page_num=base_pick_page_num,
 	.check_full=base_check_full,
 	.is_gc_needed=base_is_gc_needed, 
 	.get_gc_target=base_get_gc_target,
 	.trim_segment=base_trim_segment,
+	.trim_block=base_trim_block,
 	.populate_bit=base_populate_bit,
 	.unpopulate_bit=base_unpopulate_bit,
 	.erase_bit=base_erase_bit,
@@ -188,15 +191,13 @@ void base_trim_segment (struct blockmanager* bm, __gsegment* gs, struct lower_in
 }
 
 
-void base_trim_block(struct blockmanager *bm, __block *b, struct lower_info *li){
 
-	li->trim_a_block(GETBLOCKPPA(b), ASYNC);
-	b->invalid_num = 0;
-	b->now = 0;
+void base_trim_block(struct blockmanager * bm, __block *b, struct lower_info* li){
+	li->trim_a_block(GETBLOCKPPA(b),ASYNC);
+	b->invalid_number=0;
+	b->now=0;
 	memset(b->bitset,0,_PPB/8);
 	memset(b->oob_list,0,sizeof(b->oob_list));
-
-	return ;
 }
 
 int base_populate_bit (struct blockmanager* bm, uint32_t ppa){
@@ -304,6 +305,17 @@ int base_get_page_num(struct blockmanager* bm,__segment *s){
 	
 	s->used_page_num++;
 	if(page>_PPB) abort();
+	return res;
+}
+
+int base_get_page_num_from_num(struct blockmanager* bm,__block *b){
+	uint32_t page=b->now++;
+	int res=b->block_num;
+
+	res+=page<<6;
+	res+=b->punit_num;
+	
+	if(page>_PPB) return -1;
 	return res;
 }
 

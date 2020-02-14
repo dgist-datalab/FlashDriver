@@ -200,11 +200,15 @@ struct blockmanager{
 	__block *(*pick_block)(struct blockmanager*, uint32_t page_num);
 	__segment* (*get_segment) (struct blockmanager*, bool isreserve);
 	int (*get_page_num)(struct blockmanager*, __segment*);
+	int (*get_page_num_from_block)(struct blockmanager *, __block *);
+
 	int (*pick_page_num)(struct blockmanager*, __segment*);
 	bool (*check_full)(struct blockmanager*, __segment*, uint8_t type);
 	bool (*is_gc_needed) (struct blockmanager*);
 	__gsegment* (*get_gc_target) (struct blockmanager*);
 	void (*trim_segment) (struct blockmanager*, __gsegment*, struct lower_info*);
+	void (*trim_block) (struct blockmanager *, __block *, struct lower_info*);
+
 	int (*populate_bit) (struct blockmanager*, uint32_t ppa);
 	int (*unpopulate_bit) (struct blockmanager*, uint32_t ppa);
 	int (*erase_bit)(struct blockmanager*, uint32_t ppa);
