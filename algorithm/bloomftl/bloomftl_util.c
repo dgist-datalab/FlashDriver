@@ -84,26 +84,28 @@ int gc_compare(const void *a, const void *b){
 
 uint32_t ppa_alloc(uint32_t lba){
 	Block *block;
-	uint32_t superblk, cur_idx;
-	uint32_t p_idx, s_p_idx;
-	uint32_t invalid_ppa, ppa;
-	uint32_t i_pbn, i_idx;
-	uint32_t f_idx;
-	int32_t block_full;
+	uint32_t superblk, cur_idx;   //physical superblock number, a single block index used in a superblock
+	uint32_t p_idx;      //Page offset in a single block
+	uint32_t invalid_ppa, ppa;   
+	uint32_t f_idx;               //Current BF index
 #if REBLOOM
 	uint32_t pre_lba, rb_cnt;
 #endif
-	//superblk = lba / mask;
+
+
+	/* Hash_MODE is to pick a superblock using hash function, otherwise superblock is selected by shift operation */
 #if HASH_MODE
 	superblk = hashing_key(lba>>S_BIT) % nos;
 #else
 	superblk = (lba >> S_BIT) % nos;
 #endif
-	check_cnt++;
-	if(check_cnt >= RANGE){
-		check_flag = 1;
-	}
 
+	/* This is a section to invalidate physical page 
+	 * For fast evaluation, this invalidate previous physical page looking up table
+	 * This policy can be replaced by another invalidation policy
+	 * This policy can be affected write throughput, so you must optimization for invalidation policy.
+	 */
+	
 	if(!lba_flag[lba])
 		lba_flag[lba] = 1;
 	else{
@@ -115,13 +117,10 @@ uint32_t ppa_alloc(uint32_t lba){
 #if REBLOOM
 	//Reblooming trigger
 	if(b_table[superblk].bf_num >= r_check){
-		b_table[superblk].first = 0;
 		rebloom_op(superblk);
 	}
 #endif
-
 	if(b_table[superblk].full == pps){
-		b_table[superblk].first = 0;
 		bloom_gc(superblk);
 	}else{
 		get_cur_block(superblk);
@@ -132,13 +131,19 @@ uint32_t ppa_alloc(uint32_t lba){
 	cur_idx = b_table[superblk].c_block;
 	block   = b_table[superblk].b_bucket[cur_idx];
 	p_idx   = block->p_offset;
-	s_p_idx = ((block->PBA * ppb) + p_idx) % pps;
 
 #if REBLOOM
+
+	/* If previous LBA and current LBA is sequential, you don't need to make new BF 
+	 *
+	 * Instead of, you have to set 0 for written physical page
+	 *
+	 */
+	
 	pre_lba = b_table[superblk].pre_lba;
 	rb_cnt  = b_table[superblk].rb_cnt;
 	if(pre_lba+1 != lba || rb_cnt == MAX_RB-1){
-		set_bf_table(lba, f_idx, s_p_idx);
+		set_bf_table(lba, f_idx);
 		b_table[superblk].rb_cnt = 0;
 	}else{
 		b_table[superblk].rb_cnt++;
@@ -148,20 +153,10 @@ uint32_t ppa_alloc(uint32_t lba){
 	}
 	b_table[superblk].pre_lba = lba;
 #else
-	if(!b_table[superblk].first){
-		b_table[superblk].first = 1;
-		sb[superblk].p_flag[f_idx] = 1;
-		lba_bf[lba] = 0;
-	}else{
-		set_bf_table(lba, f_idx, s_p_idx);
-	}
+	set_bf_table(lba, f_idx);
 #endif
-
-
-
 	ppa = (block->PBA * ppb) + p_idx;
 	BM_ValidatePage(bm, ppa);
-	//Set valid & oob for block
 	bloom_oob[ppa].lba = lba;
 	
 	block->p_offset++;
@@ -172,81 +167,36 @@ uint32_t ppa_alloc(uint32_t lba){
 }
 
 
-uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
-	//uint32_t superblk = lba / mask;
+uint32_t set_bf_table(uint32_t lba, uint32_t f_idx){
 	uint32_t superblk;
-	uint32_t hashkey, bf_idx;
+	uint32_t hashkey;
 	
 #if HASH_MODE
 	superblk = hashing_key(lba>>S_BIT) % nos;
 #else
 	superblk = (lba>>S_BIT) % nos;
 #endif
-	
 	hashkey = hashing_key(lba);
-
-
-	bf_idx  = b_table[superblk].bf_num;	
-	
 	sb[superblk].p_flag[f_idx] = 1;
-
-	sb[superblk].bf_page[s_p_idx].s_idx = bf_idx;
-#if OFFSET_MODE
-	set_bf(hashkey + s_p_idx, superblk, s_p_idx);
-#else
-	set_bf(hashkey,superblk,s_p_idx);
-#endif
+	set_bf(hashkey, superblk);
 	b_table[superblk].bf_num++;
-
 	lba_bf[lba] = 1;
+
 	return 1;
 }
 
-uint32_t check_first(uint32_t lba){
 
-	Block *block;
-	uint32_t superblk;
-	uint32_t b_idx, b_offset;
-	uint32_t f_offset = 0;
-	uint32_t ppa = 0;
-	uint32_t oob;
-	//superblk = lba / mask;
-#if HASH_MODE
-	superblk = hashing_key(lba>>S_BIT) % nos;
-#else
-	superblk = (lba >> S_BIT) % nos;
-#endif
-	int32_t full = b_table[superblk].full;
-	for(int i = 0; i < full; i++){
-		if(sb[superblk].p_flag[i]){
-			f_offset = i;
-			break;
-		}
-	}
-	b_idx    = f_offset / ppb;
-	b_offset = f_offset % ppb;
-	
-	block = b_table[superblk].b_bucket[b_idx];
-	ppa   = (block->PBA * ppb) + b_offset;
-	oob   = bloom_oob[ppa].lba;
-
-	if(oob != lba){
-		printf("[READ FAIL] Check first !!\n");
-		exit(0);
-	}
-
-	return ppa;
-}
 
 uint32_t table_lookup(uint32_t lba, bool flag){
-	Block *block;	
 	int64_t ppa =-1;
-	uint32_t superblk, full, oob;
+	uint32_t superblk, full, oob; //superblock number, current written number for a superblock, oob variable
+
+	uint32_t bf_idx;
 #if REBLOOM
-	uint8_t bits_len;
+	uint8_t bits_len;			 //To check sequentiality a LBA, for example STable 1000 --> bits_len : 3
 #else
 	register uint32_t hashkey;
-	uint32_t b_idx, b_offset, s_p_idx;
+	uint32_t b_idx, b_offset, s_p_idx; //For a superblock, block index, page offset in a single block, superblock index
 #endif	
 #if HASH_MODE
 	superblk = hashing_key(lba>>S_BIT) % nos;
@@ -254,37 +204,57 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 	superblk = (lba >> S_BIT) % nos;
 #endif
 	full = b_table[superblk].full;
-
+	bf_idx = b_table[superblk].bf_num-1;
 #if !REBLOOM
+	/*
+	 *
+	 * This section performs when it is not trigger Reblooming. 
+	 * Check for all BF From last to first.
+	 * bf_idx means a current written BF index, this is last BF offset.
+	 *
+	 */
 	hashkey = hashing_key(lba);
 	for(int i = full-1; i >=0 ; i--){
 		if(sb[superblk].p_flag[i]){
 			b_idx    = i / ppb;
 			b_offset = i % ppb;
 			block    = b_table[superblk].b_bucket[b_idx];
-			s_p_idx  = ((block->PBA * ppb) + b_offset) % pps;
 			ppa      = ((block->PBA * ppb) + b_offset);
-			if(get_bf(hashkey, superblk, s_p_idx)){
+			if(get_bf(hashkey, superblk, bf_idx)){
 				oob = bloom_oob[ppa].lba;
 				if(oob == lba){
-					found_cnt++;
+					if(flag)
+						found_cnt++;
+					else
+						gc_read++;
 
 					break;
 				}else{
-					not_found_cnt++;
+					if(flag)
+						 not_found_cnt++;
+					else
+						gc_read++;
 				}
 			}
+			bf_idx--;
 		}
 	}
 #else
+
+	/*
+	 * This section performs when it is trigger Reblooming.
+	 * This checks phsical pages set BFs
+	 *
+	 */
 	bits_len = 0;
-	for(int i = full-1; i >=0; i--){
+	for(int i = full-1; i>=0; i--){
 		if(sb[superblk].p_flag[i]){
-			ppa = bf_lookup(superblk,lba, i, bits_len, flag);
+			ppa = bf_lookup(superblk,lba, i, bf_idx, bits_len, flag);
 			if(ppa != -1){
 				break;
 			}
 			bits_len = 0;
+			bf_idx--;
 		}
 		else{
 			bits_len++;
@@ -292,6 +262,9 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 	}
 #endif
 
+
+	/* OOB check sections */
+	/* If read OOB is not correct, exit program */
 	if(ppa == -1){
 		single_ppa_flag(superblk);
 		printf("LBA : %d lba_bf : %d\n",lba,lba_bf[lba]);
@@ -307,34 +280,27 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 	return ppa;	
 
 }
-int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits_len, bool flag)
+int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx, uint32_t bf_idx, uint8_t bits_len, bool flag)
 {
 	Block *block;
 	register uint32_t hashkey;
-	uint32_t oob;
 	uint32_t b_idx, b_offset;
-	uint32_t s_p_idx;
-	int32_t f_offset = f_idx;
+	int32_t check_offset, c_range;
+	int32_t f_offset = f_idx;   //current physical page offset set bloomfiter
+	uint8_t lsb_value;          //Low bit value (MAX_RB=4, lsb_value=0,1,2,3)
+	uint32_t oob;
 	int64_t ppa;	
-	uint8_t lsb_value;
-	
-	uint32_t check_offset, c_range;
-
 
 	hashkey  = hashing_key(lba);
 	b_idx    = f_offset / ppb;
 	b_offset = f_offset % ppb;
 	block    = b_table[superblk].b_bucket[b_idx];
-	s_p_idx  = ((block->PBA * ppb) + b_offset) % pps;
 	ppa      = (block->PBA * ppb) + b_offset;
-	/*CASE 1 : If lba is head of coalesced lba */
 
+
+	/*CASE 1 : If lba is head of coalesced lba */
 	if(lba_bf[lba] != 0){
-#if OFFSET_MODE
-		if(get_bf(hashkey + s_p_idx, superblk, s_p_idx)){
-#else
-		if(get_bf(hashkey, superblk, s_p_idx)){
-#endif
+		if(get_bf(hashkey, superblk, bf_idx)){
 			oob = bloom_oob[ppa].lba;
 			if(oob == lba){
 				if(flag)
@@ -353,34 +319,35 @@ int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits
 	if(bits_len == 0)
 		return -1;
 
-	lsb_value = lba % MAX_RB;
+	/* To find coalsecing ragne */
+	/* LBA = 1 --> Low 2 bits = 01 --> LBA 1 can be only coalesced with LBA 0 */
+	/* So, Max range for LBA 1 is 1 regardless of STable legnth (1000) */
 
+	lsb_value = lba % MAX_RB;
 	c_range = bits_len;
-//	printf("bis_len : %d\n",bits_len);
-//	printf("lsb_value : %d\n",lsb_value);
 	if(bits_len > lsb_value)
 		c_range = lsb_value;
 
 
+	/*CASE 2 : If lba is not head of coalesced lba */
 	for(int i = 1; i < c_range+1; i++){
 		hashkey = hashing_key(lba-i);
-#if OFFSET_MODE
-		if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
-#else
-		if(get_bf(hashkey, superblk, s_p_idx)){
-#endif
+		if(get_bf(hashkey, superblk, bf_idx)){
 			check_offset = f_offset + i;
 			if(check_offset >= pps)
 				continue;
 			oob = bloom_oob[ppa].lba;
 
-			//This hear real sub_read operation
+			/* You have to add 16KB read lower logic.
+		     * If I/O page size is 16KB, you can access the physical page you want at a time.
+			 * Otherwise, you must access several pages to identify a OOB.
+			 * You have to add a logic according to page size.
+			 */
 			if(oob == lba-i){	
 				f_offset = check_offset;
 				if(f_offset >= pps){
 					continue;
 				}
-				//sub_lookup_read++;
 				b_idx = f_offset / ppb;
 				b_offset = f_offset % ppb;
 				block = b_table[superblk].b_bucket[b_idx];
@@ -410,7 +377,8 @@ int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits
 	return -1;
 
 }
-#if !SUPERBLK_GC
+
+/* This is a function that selects a single block index in a superblock */
 uint32_t get_cur_block(uint32_t superblk){
 	Block *checker;
 	uint32_t cur_idx = b_table[superblk].c_block;
@@ -423,7 +391,7 @@ uint32_t get_cur_block(uint32_t superblk){
 	return 0;
 
 }
-#endif
+/* This is a function to reset available single block in a superblock */
 void reset_cur_idx(uint32_t superblk){
 
 	for(int i = 0; i < SUPERBLK_SIZE; i++){
@@ -435,11 +403,15 @@ void reset_cur_idx(uint32_t superblk){
 	}
 
 }
+
+/* This is a function to reset BF table and flag setting
+ * This is triggered when GC or reblooming
+ * Create one BF for contiguous LBAs, otherwise create one BF for one LBA.
+ */
 void reset_bf_table(uint32_t superblk){
 	Block **bucket = b_table[superblk].b_bucket;
 	Block *block;
 	uint32_t lba;
-	uint32_t s_p_idx;
 	uint32_t f_offset = 0;
 	int64_t ppa = -1;
 	uint32_t b_full = b_table[superblk].full;
@@ -454,27 +426,20 @@ void reset_bf_table(uint32_t superblk){
 			ppa = (block->PBA * ppb) + j;
 			if(BM_IsValidPage(bm,ppa)){
 				lba = bloom_oob[ppa].lba;
-				s_p_idx = ((block->PBA * ppb) + j) % pps;
+				//s_p_idx = ((block->PBA * ppb) + j) % pps;
 #if REBLOOM
 				rb_cnt = b_table[superblk].rb_cnt;
 				if(pre_lba+1 != lba || rb_cnt == MAX_RB-1){
-					set_bf_table(lba, f_offset, s_p_idx);
+					set_bf_table(lba, f_offset);
 					b_table[superblk].rb_cnt = 0;
 				}else{
 					b_table[superblk].rb_cnt++;
 					sb[superblk].p_flag[f_offset] = 0;
-					//sb[superblk].lba_bf[lba_offset] = 0;
 					lba_bf[lba] = 0;
 				}
 				pre_lba = lba;
 #else
-				if(!b_table[superblk].first){
-					b_table[superblk].first = 1;
-					sb[superblk].p_flag[f_offset] = 1;
-					lba_bf[lba] = 0;
-				}else{
-					set_bf_table(lba, f_offset, s_p_idx);
-				}
+				set_bf_table(lba, f_offset);
 #endif
 			}else{
 #if REBLOOM
@@ -495,10 +460,10 @@ void reset_bf_table(uint32_t superblk){
 	return ;
 }
 
-void set_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx){
+void set_bf(uint32_t hashed_key, uint32_t superblk){
     uint32_t bf_bits, h;
-    int start = sb[pbn].bf_page[p_idx].s_idx;
-    int length = bf->base_bf[p_idx].s_bits;
+    int start = b_table[superblk].bf_num;
+    int length = bf->bits_per_entry;
     int end_byte, end_bit, arr_sz, remain_chunk;
     uint8_t chunk_sz;
 
@@ -510,17 +475,13 @@ void set_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx){
     chunk_sz = length > end_bit + 1 ? end_bit + 1 : length;
 
 
-    bf_bits = bf->base_bf[p_idx].bf_bits;
-#if OFFSET_MODE
-	h = hashfunction(hashed_key) % bf_bits;
-#else
+    bf_bits = bf->m;
 	h = hashed_key % bf_bits;
-#endif
 
     if(end_bit == 7){
-        b_table[pbn].bf_arr[end_byte] |= h << (8 - chunk_sz);
+        b_table[superblk].bf_arr[end_byte] |= h << (8 - chunk_sz);
     }else{
-        b_table[pbn].bf_arr[end_byte] |= h & ((1 << chunk_sz) -1);
+        b_table[superblk].bf_arr[end_byte] |= h & ((1 << chunk_sz) -1);
     }
     if(arr_sz == 1){
         return ;
@@ -530,14 +491,14 @@ void set_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx){
     remain_chunk -= chunk_sz;
     chunk_sz = remain_chunk > 8 ? 8 : remain_chunk;
 
-    b_table[pbn].bf_arr[end_byte-1] |= h << (8 - chunk_sz);
+    b_table[superblk].bf_arr[end_byte-1] |= h << (8 - chunk_sz);
     if(arr_sz == 2){
         return ;
     }
     h >>= chunk_sz;
     remain_chunk -= chunk_sz;
     chunk_sz = remain_chunk > 8 ? 8 : remain_chunk;
-    b_table[pbn].bf_arr[end_byte-2] |= h << (8 - chunk_sz);
+    b_table[superblk].bf_arr[end_byte-2] |= h << (8 - chunk_sz);
 
     return ;
 }

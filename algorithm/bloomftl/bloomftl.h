@@ -27,102 +27,103 @@
 
 #define TYPE uint8_t
 
+
+//#define C_PAGES (PAGESIZE/4096) //coalescing pages for Logical to Physical page
+#define C_PAGES 4
+
 #define SYMMETRIC 1
-#define PR_SUCCESS 0.9
-#define SUPERBLK_SIZE 4
-#define MAX_RB 4
-#define S_BIT (MAX_RB/2)
+#define PR_SUCCESS 0.9	  //PR ratio (1-fpr)
+#define SUPERBLK_SIZE 4	  //Block per Superblock
+#define MAX_RB (C_PAGES)  //In Reblooming, max num of coalesced entry
+#define S_BIT (MAX_RB/2)  //log((logical page size)/(physical page size)) -> coalasing bit
+#define HASH_MODE 1       //Decide superblock by hash, if 0 -> decide superblock by shift operation
+#define REBLOOM 1          //Reblooming enable flag 
+#define OOR (RANGE+1)      //initial value for reblooming
 
-#define OFFSET_MODE 0          //Zone-based BloomFTL
-#define HASH_MODE 1	       //Decide superblock by hash
-#define REBLOOM 1
-#define OOR (RANGE+1)
 
-/* bit pattern for BF lookup */
-
-//BF_INFO for each physical page
+//Data structure for BF, this structure is used for statistics such as memory usage
 typedef struct {
-	uint32_t bf_bits;
-	uint32_t s_bits;
-}BF_INFO;
-
-
-//Data structure for BF
-typedef struct {
-    uint32_t k;
-    uint32_t m;
-    uint64_t targetsize;
-    int n;
-    float p;
-    char* body;
-    uint64_t start;
-	BF_INFO *base_bf;
-	uint32_t base_s_bits;
-	uint32_t base_s_bytes;
+	uint32_t k; //# of functions , this must be 1
+	uint32_t m; //# of bits in a bloomfilter
+	int n; //# of entyr, this must be 1
+	float p; //fpr
+	char* body; //bits array
+	uint32_t bits_per_entry; //symbolize bits per entry
+	uint32_t total_s_bits;   //Total symbolized bit length
+	uint32_t total_s_bytes;  //Total symbolized byte
 } BF;
 
 
-//Physical BF table
+//BF table
+//one bf table per one superblock
+
 typedef struct {
-	uint8_t *bf_arr;
-	uint32_t bf_num;
-	Block **b_bucket;
-	uint32_t c_block;
-	int32_t full;
+	uint8_t *bf_arr;    //Array for set bloomfilter
+	uint32_t bf_num;    //BF count of a superblock
+	Block **b_bucket; //Single block pointer within superblock
+	uint32_t c_block;   //Use single block index
+	int32_t full;       //Used physical page count
 #if REBLOOM
-	uint32_t pre_lba;
-	uint32_t rb_cnt;
+	/*this two variables are used only reblooming, they can be removed*/
+	uint32_t pre_lba;   //Sequentiality check variable
+	uint32_t rb_cnt;    //Current sequentaility count in superblock
 #endif
-	bool first;
 }BF_TABLE;
 
 
+/*
+    * (S table in humantech paper)
+	 * */
 typedef struct {
-	int32_t s_idx;
-}Index;
-
-typedef struct {
-	Index *bf_page;
-	bool *p_flag;			//If allocate BF on pyhsical page, set 1.
-	uint32_t num_s_bits;	//Num of total symbol bits (This is a total bits for Physical(Superblock) block)
-	uint32_t num_s_bytes;	//Num of total bytes converted total symbol bits into bytes
+	    bool *p_flag;       //If allocate BF on pyhsical page, set 1.
 }SBmanager;
 
-
 typedef struct{
-	int32_t lba;
+	    int32_t lba;
 }B_OOB;
 
-//Global struct for GC & Reblooming
+/*************Global struct for GC & Reblooming*********/
+
+/*
+ * one per lpa
+ * this is used at GC
+ * temporal buffer for data in a superblock
+ * */
 typedef struct {
 	int32_t lba;
 	int32_t ppa;
-	int32_t weight;
-	int32_t b_idx;
+	int32_t weight;// for checking latest data
+	int32_t b_idx; // block index in superblock 
 }T_table;
 
+/*
+ *  write buffer for a physical page in GC
+ */
 typedef struct SRAM{
-	int32_t oob_ram;
-	PTR ptr_ram;
+	int32_t oob_ram; //oob
+	PTR ptr_ram; //data
 }SRAM;
 
-typedef struct {	
-	T_table *t_table;
+
+
+typedef struct {
+	T_table *t_table; // change it not to use pointer
 	value_set *value;
 	uint32_t size;
 }G_manager;
 
-typedef struct bloom_params{
-	value_set *value;
+
+typedef struct bloom_params{ //paramater of algo_req
+	value_set *value;  //not used maybe
 	dl_sync bloom_mutex;
 	TYPE type;
 }bloom_params;
+
 
 struct prefetch_struct {
 	uint32_t ppa;
 	snode *sn;
 };
-
 
 extern algorithm __bloomftl;
 
@@ -140,23 +141,17 @@ extern G_manager *re_list;
 
 #endif
 extern BF_TABLE *b_table;
-extern bool *lba_flag;
-extern bool *lba_bf;
-extern B_OOB *bloom_oob;
+extern bool *lba_flag;      //To check if LBA is set
+extern bool *lba_bf;	    //To check if LBA has a BF
+extern B_OOB *bloom_oob;    
 
 
-
-extern bool check_flag;
-extern int32_t check_cnt;
-
-
+/* I/O count variable */
 extern uint32_t algo_write_cnt;
 extern uint32_t algo_read_cnt;
 extern uint32_t gc_write;
 extern uint32_t gc_read;
-
 extern volatile int32_t data_gc_poll;
-
 extern uint32_t block_erase_cnt;
 extern uint32_t not_found_cnt;
 extern uint32_t found_cnt;
@@ -166,47 +161,51 @@ extern uint32_t remove_read;
 extern uint32_t sub_lookup_read;
 
 
-extern uint32_t lnb;
-extern uint32_t mask;
+extern uint32_t lnb;   //Num of logical block
 
-extern int32_t nob;
-extern int32_t ppb;
-extern int32_t nop;
-extern int32_t lnp;
-extern int32_t nos;
-extern int32_t pps;
-extern uint32_t r_count;
 
-extern bool rb_flag;
-extern bool gc_flag;
+/* Num of available pages in a superblock, rest is op pages.
+ * e.g., single block = 128, superblock pages = 512, op = 25%, mask = 384 (512-128)
+ *
+ */
+extern uint32_t mask;  
+
+extern int32_t nob; //Num of physical block
+extern int32_t ppb; //Page per block
+extern int32_t nop; //Num of physical page
+extern int32_t lnp; //Num of logical page
+extern int32_t nos; //Num of superblock
+extern int32_t pps; //Page per superblock
+
 #if REBLOOM
-extern uint32_t r_check;
+extern uint32_t r_check;  //Reblooming trigger variable
 #endif
-extern uint32_t g_cnt;
 
 //bloomftl_util.c
 
 int lba_compare(const void *, const void *);
 int gc_compare(const void *, const void *);
+
+
 uint32_t ppa_alloc(uint32_t);
-
-void set_bf(uint32_t, uint32_t, uint32_t);
-void reset_cur_idx(uint32_t);
-
-uint32_t table_lookup(uint32_t, bool);
-int64_t bf_lookup(uint32_t, uint32_t, uint32_t, uint8_t, bool);
-uint32_t check_first(uint32_t);
+uint32_t table_lookup(uint32_t, bool); //Function for lookup table in a superblock
+int64_t bf_lookup(uint32_t, uint32_t,uint32_t, uint32_t, uint8_t, bool); //Function for checking correct BF
 
 
 algo_req* assign_pseudo_req(TYPE, value_set *, request *);
 value_set* SRAM_load(int64_t, int ,TYPE);
 void SRAM_unload(SRAM *, int64_t, int, TYPE);
 
+uint32_t get_cur_block(uint32_t);  //Function to get current using single block
+void reset_cur_idx(uint32_t);      //Among single blocks, pick empty block
 
-uint32_t get_cur_block(uint32_t);
-uint32_t set_bf_table(uint32_t, uint32_t, uint32_t);
+/* Functions for set BFs in a superblock */
+uint32_t set_bf_table(uint32_t, uint32_t);
+void set_bf(uint32_t, uint32_t);
 
-void reset_bf_table(uint32_t);
+
+void reset_bf_table(uint32_t); //Function BF table reset for a superblock after GC or Reblooming
+
 //debugging.c
 void all_ppa_flag(void);
 void single_ppa_flag(uint32_t);
@@ -220,22 +219,27 @@ uint32_t hash_remove(request *const);
 void *bloom_end_req(algo_req*);
 
 //bloomfilter.c
-BF *bf_init(int entry, int ppb);
+BF *bf_init(int entry, int ppb); //Function for statistics making global bloomfilter
 void bf_free(BF *);
 uint32_t bf_bytes(uint32_t);
 
 //gc.c
-uint32_t bloom_gc(uint32_t);
-int invalid_block(Block **, int, uint32_t);
+
+/* Functions for GC */
+uint32_t bloom_gc(uint32_t);				
+int invalid_block(Block **, int, uint32_t); //Function to invalidate single block in a superblock
 
 #if REBLOOM
 //rebloom.c
+/* Function for Reblooming */
+
 void rebloom_op(uint32_t);
 uint32_t rebloom_gc(SRAM *, int32_t *, int32_t *, uint32_t, uint32_t);
-uint32_t set_rebloom_list(int32_t);
-uint32_t check_rb_valid(SRAM *, int32_t);
+uint32_t set_rebloom_list(int32_t); //Function to make reblooming list
+uint32_t check_rb_valid(SRAM *, int32_t); //Function to checking valid page in made reblooming list
 #endif
-//Hash functions
+/* Hash Functions */
+//Use not this function
 static inline uint32_t hashfunction(uint32_t key) {
     key ^= key >> 15;
     key *= 2246822519U;
@@ -245,36 +249,36 @@ static inline uint32_t hashfunction(uint32_t key) {
 
     return key;
 }
+
+//Fibonach hash
 static inline uint32_t hashing_key(uint32_t key) {
     return (uint32_t)((0.618033887 * key) * 1024);
 }
 
-static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
+
+//Function to check symbolized BF in a superblock
+//This is core function, so it made by jiho.
+static inline bool get_bf(uint32_t hashed_key, uint32_t superblk, uint32_t bf_idx) {
     uint32_t bf_bits, h;
 
-    int start = sb[pbn].bf_page[p_idx].s_idx;
-
-//	printf("start : %d\n",start);
-	int length = bf->base_bf[p_idx].s_bits;
+    int start = bf_idx;
+	int length = bf->bits_per_entry;
     int end_byte = (start*length + length - 1) / 8;
     int end_bit = (start*length + length - 1) % 8;
     int symb_arr_sz = end_byte - ((start*length) / 8) + 1;
     uint8_t chunk_sz = length > end_bit + 1 ? end_bit + 1 : length;
-    bf_bits = bf->base_bf[p_idx].bf_bits;
-
-#if OFFSET_MODE
-	h = hashfunction(hashed_key) % bf_bits;
-#else
+  
+	bf_bits = bf->m;
 	h = hashed_key % bf_bits;
-#endif
+
     // 1
     if(end_bit == 7) {
-        if(((h & ((1 << chunk_sz) - 1)) ^ (b_table[pbn].bf_arr[end_byte] >> (8 - chunk_sz)))) {
+        if(((h & ((1 << chunk_sz) - 1)) ^ (b_table[superblk].bf_arr[end_byte] >> (8 - chunk_sz)))) {
             goto not_exist;
         }
     }
     else{
-        if((h ^ b_table[pbn].bf_arr[end_byte]) & ((1 << chunk_sz) - 1)){
+        if((h ^ b_table[superblk].bf_arr[end_byte]) & ((1 << chunk_sz) - 1)){
             goto not_exist;
         }
     }
@@ -289,7 +293,7 @@ static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
     chunk_sz = length > 8 ? 8 : length;
 
     // 2
-    if((h & ((1 << chunk_sz) - 1)) ^ (b_table[pbn].bf_arr[end_byte] >> (8 - chunk_sz))){
+    if((h & ((1 << chunk_sz) - 1)) ^ (b_table[superblk].bf_arr[end_byte] >> (8 - chunk_sz))){
         goto not_exist;
     }
 
@@ -303,7 +307,7 @@ static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
     chunk_sz = length > 8 ? 8 : length;
 
     // 3
-    if((h & ((1 << chunk_sz) - 1)) ^ (b_table[pbn].bf_arr[end_byte] >> (8 - chunk_sz))){
+    if((h & ((1 << chunk_sz) - 1)) ^ (b_table[superblk].bf_arr[end_byte] >> (8 - chunk_sz))){
         goto not_exist;
     }
 

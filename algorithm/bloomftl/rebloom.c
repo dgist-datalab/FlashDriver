@@ -10,17 +10,20 @@ void rebloom_op(uint32_t superblk){
 
 	uint32_t p_idx;
 	uint32_t cur_idx;
-	int32_t g_range, rb_valid_cnt;
-	int32_t valid_cnt;
+	int32_t g_range, rb_valid_cnt; //Group counts for Reblooming list, Num of reblooming valid pages
+	int32_t valid_cnt;			   //In superblock, num of valid pages
 
-	int32_t free_space;
+	int32_t free_space;			   //In superblock, num of empty pages
 	int32_t erase_idx = 0;
 	int64_t ppa;
 
 	//Invalid temporal table for blocks	
 	cur_idx  = b_table[superblk].c_block;
+
+	//Invalidate pages
 	valid_cnt = invalid_block(bucket, cur_idx, superblk);
 
+	//Init memory buffer for GC or Reblooming
 	d_ram = (SRAM *)malloc(sizeof(SRAM) * pps);
 	for(int i = 0 ; i < pps ; i++){
 		d_ram[i].oob_ram = -1;
@@ -28,9 +31,10 @@ void rebloom_op(uint32_t superblk){
 	}
 
 
-	//Make reblooming list
-
+	//Make Reblooming list
 	g_range = set_rebloom_list(valid_cnt);		
+
+	//Check valid reblooming pages
 	rb_valid_cnt = check_rb_valid(d_ram, g_range);	
 
 	free_space = pps - b_table[superblk].full;
@@ -41,7 +45,7 @@ void rebloom_op(uint32_t superblk){
 	}
 
 
-	//Shift bucket pointers for blocks
+	//Shift bucket pointers for blocks to write reblooming pages
 	if(erase_idx != SUPERBLK_SIZE){
 		while(erase_idx--){
 			m_block = bucket[0];
@@ -52,6 +56,7 @@ void rebloom_op(uint32_t superblk){
 		}
 
 	}
+
 	//Reset current block pointer
 	reset_cur_idx(superblk);
 	for(int i = 0; i < rb_valid_cnt; i++){
@@ -73,13 +78,13 @@ void rebloom_op(uint32_t superblk){
 	//Reset bloomfilter
 	b_table[superblk].bf_num = 0;
 	b_table[superblk].rb_cnt = 0;
-	memset(b_table[superblk].bf_arr, 0, sizeof(uint8_t) * bf->base_s_bytes);
-	memset(sb[superblk].bf_page, -1, sizeof(Index) * pps);
+	memset(b_table[superblk].bf_arr, 0, sizeof(uint8_t) * bf->total_s_bytes);
 	memset(sb[superblk].p_flag, 0, sizeof(bool) * pps);
 
 	reset_bf_table(superblk);	
 
 
+	//Reset memory buffer for Reblooming
 	for(int i = 0 ; i < pps ; i++){	
 		memset(gm[i].t_table, -1, sizeof(T_table));
 		if(gm[i].value != NULL){
@@ -99,8 +104,6 @@ void rebloom_op(uint32_t superblk){
 	}
 
 	for(int i = 0 ; i < SUPERBLK_SIZE; i++){
-		//free(re_list[i].t_table);
-		//free(re_list[i].value);
 		memset(re_list[i].t_table, -1, sizeof(T_table) * ppb);
 		memset(re_list[i].value, 0, sizeof(value_set) * ppb);
 		re_list[i].size = 0;
@@ -116,8 +119,6 @@ uint32_t rebloom_gc(SRAM *sram, int32_t *free_space, int32_t *erase_idx, uint32_
 	Block **bucket = b_table[superblk].b_bucket;
 	Block *victim;
 	uint32_t idx = full;
-	// uint32_t max_invalid;
-	//uint32_t max_idx, check_idx;
 	int32_t add_cnt;
 	uint32_t remove_idx = *erase_idx;
 
@@ -129,8 +130,8 @@ uint32_t rebloom_gc(SRAM *sram, int32_t *free_space, int32_t *erase_idx, uint32_
 	__bloomftl.li->trim_block(victim->PBA * ppb, false);		
 	BM_InitializeBlock(bm, victim->PBA);
 	block_erase_cnt++;
-
 	add_cnt = re_list[remove_idx].size;
+
 	//Add valid pages into write list
 	if(add_cnt != 0){
 		for(int i = 0 ; i < add_cnt; i++){
@@ -169,10 +170,6 @@ uint32_t set_rebloom_list(int32_t arr_size){
 
 	max_group = g_idx + 1;
 
-	//free copy page memory 
-
-
-
 	return max_group;
 
 
@@ -185,6 +182,8 @@ uint32_t check_rb_valid(SRAM *sram, int32_t g_range){
 	int32_t rb_size;
 	int64_t ppa;
 
+
+	//Divide Reblooming pages and no reblooming pages
 	for(int i = 0 ; i < g_range; i++){
 		rb_size = rb[i].size;
 		for(int j = 0 ; j < rb_size; j++){

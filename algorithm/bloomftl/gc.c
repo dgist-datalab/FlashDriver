@@ -3,6 +3,9 @@
 
 uint32_t bloom_gc(uint32_t superblk){
 
+
+
+
 	Block **bucket = b_table[superblk].b_bucket;
 	Block *victim;
 	SRAM *d_ram;
@@ -15,6 +18,8 @@ uint32_t bloom_gc(uint32_t superblk){
 
 	volatile int k = 0;
 	data_gc_poll = 0;
+	
+	/* Init memory buffer for valid pages */
 	d_ram = (SRAM *)malloc(sizeof(SRAM) * pps);
 	temp_set = (value_set **)malloc(sizeof(value_set *) * pps);
 	for(int i = 0 ; i < pps ; i++){
@@ -24,11 +29,17 @@ uint32_t bloom_gc(uint32_t superblk){
 
 
 
-	//Select Greedy block
+	/* Select victim block and shift block pointer 
+	 *
+	 * e.g,. victim index = 2
+	 *
+	 * ----------------   after   ----------------   
+	 *  0 | 1 | 2 | 3 |   ------>  0 | 1 | 3 | 2 |
+	 * ---------------            ----------------
+	 *
+	 */
 	max_idx = 0;
 	max_invalid = bucket[max_idx]->Invalid;
-
-
 	for(int i = 1; i < SUPERBLK_SIZE; i++){
 		if(max_invalid < bucket[i]->Invalid){
 			max_invalid = bucket[i]->Invalid;
@@ -36,7 +47,6 @@ uint32_t bloom_gc(uint32_t superblk){
 		}
 	}
 	b_table[superblk].full -= max_invalid;
-	//Shift block bucket	
 	victim = bucket[max_idx];
 
 	if(max_idx != SUPERBLK_SIZE-1){
@@ -46,6 +56,7 @@ uint32_t bloom_gc(uint32_t superblk){
 		bucket[SUPERBLK_SIZE-1] = victim;
 	}
 
+	/* Read valid pages in a victim block */
 	for(int i = 0 ; i < victim->p_offset; i++){
 		ppa = (victim->PBA * ppb) + i;
 		if(BM_IsValidPage(bm, ppa)){
@@ -60,15 +71,14 @@ uint32_t bloom_gc(uint32_t superblk){
 
 	while(data_gc_poll != k){};
 
-	// Init block and bloomfilter
+	/* Erase block and Init block configuration and BF table */
 	old_block = victim->PBA * ppb;
 	__bloomftl.li->trim_block(old_block, false);	
 	BM_InitializeBlock(bm, victim->PBA);
 
 	block_erase_cnt++;
 
-	memset(b_table[superblk].bf_arr, 0, sizeof(uint8_t) * bf->base_s_bytes);
-	memset(sb[superblk].bf_page, -1, sizeof(Index) * pps);
+	memset(b_table[superblk].bf_arr, 0, sizeof(uint8_t) * bf->total_s_bytes);
 	memset(sb[superblk].p_flag, 0, sizeof(bool) * pps);	
 #if REBLOOM
 	b_table[superblk].rb_cnt = 0;
@@ -77,6 +87,8 @@ uint32_t bloom_gc(uint32_t superblk){
 
 	b_table[superblk].bf_num = 0;
 
+
+	/* Write vaild pages into new block */
 	for(int i = 0; i < k; i++){
 		ppa = (victim->PBA * ppb) + victim->p_offset;
 		SRAM_unload(d_ram, ppa, i, GCDW);
@@ -123,6 +135,12 @@ int invalid_block(Block **bucket, int b_idx, uint32_t superblk){
 		start_idx = b_idx;
 	}
 
+
+	/* All read valid pages in a superblock 
+	 * If the weight is low, the data is up to date. 
+	 * We don't konw invalida page before all page read.
+	 * So, This section is to check valid page and invalid page
+	 */
 	for(int i = start_idx; i>=0 ; i--){
 		checker = bucket[i];
 		for(int j = checker->p_offset-1; j>=0; j--){
@@ -133,7 +151,6 @@ int invalid_block(Block **bucket, int b_idx, uint32_t superblk){
 				}else{
 					type = GCDR;
 				}
-
 				gm[k].t_table->lba = bloom_oob[ppa].lba;
 				gm[k].t_table->ppa = ppa;
 				gm[k].t_table->weight = weight++;
@@ -148,7 +165,14 @@ int invalid_block(Block **bucket, int b_idx, uint32_t superblk){
 
 
 	while(data_gc_poll != k){} //polling for all page load	
+
+	/* Sort for LBAs */
 	qsort(gm, k, sizeof(G_manager), lba_compare);
+
+
+	/* Remove double valid pages 
+	 * Using the weight value, this section is performed to find valid pages
+	 */
 	check_g = gm[0];
 	for(int i = 1; i < k; i++){
 		if(check_g.t_table->lba != gm[i].t_table->lba){
