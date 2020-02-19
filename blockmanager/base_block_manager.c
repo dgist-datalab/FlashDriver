@@ -198,6 +198,7 @@ void base_trim_block(struct blockmanager * bm, __block *b, struct lower_info* li
 	b->now=0;
 	memset(b->bitset,0,_PPB/8);
 	memset(b->oob_list,0,sizeof(b->oob_list));
+	return ;
 }
 
 int base_populate_bit (struct blockmanager* bm, uint32_t ppa){
@@ -308,7 +309,7 @@ int base_get_page_num(struct blockmanager* bm,__segment *s){
 	return res;
 }
 
-int base_get_page_num_from_num(struct blockmanager* bm,__block *b){
+int base_get_page_num_from_block(struct blockmanager* bm,__block *b){
 	uint32_t page=b->now++;
 	int res=b->block_num;
 

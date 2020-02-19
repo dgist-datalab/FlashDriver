@@ -25,42 +25,35 @@
 
 #define TYPE uint8_t
 
+#define C_PAGES (PAGESIZE/4096) //coalescing pages
+
 #define SYMMETRIC 1		
 #define PR_SUCCESS 0.9	      //PR ratio (1-fpr)
 #define SUPERBLK_SIZE 4	      //Block per Superblock
-#define MAX_RB 4	      //In Reblooming, max num of entry
+#define MAX_RB (C_PAGES)			//In Reblooming, max num of entry
 #define S_BIT (MAX_RB/2)      //log((logical page size)/(physical page size)) -> coalasing bit
 
 #define HASH_MODE 1	       //Decide superblock by hash, if 0 -> decide superblock by shift operation
-#define REBLOOM 1	       //Reblooming enable flag 
+#define REBLOOM 0	       //Reblooming enable flag 
 #define OOR (RANGE+1)	      //initial value for reblooming
-
-/* bit pattern for BF lookup */
-
-//BF_INFO for each physical page
-typedef struct {
-	uint32_t bf_bits;	//number of total Bloomfilter bits
-	uint32_t s_bits;	//number of bits per entry
-}BF_INFO;
 
 
 //Data structure for BF, this structure is used for statistics such as memory usage
 typedef struct {
 	uint32_t k; //# of functions , this must be 1
 	uint32_t m; //# of bits in a bloomfilter
-	uint64_t targetsize; //not use
 	int n; //# of entyr, this must be 1
 	float p; //fpr
 	char* body; //bits array
-	//uint64_t start;
-	BF_INFO *base_bf; 
-	uint32_t base_s_bits;
-	uint32_t base_s_bytes;
+	
+	uint32_t bits_per_entry; //symbolize bits per entry
+	uint32_t total_s_bits;	 //Total symbolized bit length
+	uint32_t total_s_bytes;  //Total symbolized byte
 } BF;
 
 
 //BF table
-//oen bf table per one superblock
+//one bf table per one superblock
 
 typedef struct {
 	uint8_t *bf_arr;	//Array for set bloomfilter
@@ -70,25 +63,17 @@ typedef struct {
 	int32_t full;		//Used physical page count
 #if REBLOOM
 	/*this two variables are used only reblooming, they can be removed*/
-	//uint32_t pre_lba;	//Sequentiality check variable
-	//uint32_t rb_cnt;	//Current sequentaility count in superblock
+	uint32_t pre_lba;	//Sequentiality check variable
+	uint32_t rb_cnt;	//Current sequentaility count in superblock
 #endif
-	//bool first;		//When no reblooming, use this variable
 }BF_TABLE;
 
-
-//typedef struct {
-//	int32_t s_idx;
-//}Index;
 
 /*
  * (S table in humantech paper)
  * */
 typedef struct {
-	//Index *bf_page;		//A BF location for physical page ????????
 	bool *p_flag;		//If allocate BF on pyhsical page, set 1.
-	uint32_t num_s_bits;	//Num of total symbol bits (This is a total bits for Physical(Superblock) block)
-	uint32_t num_s_bytes;	//Num of total bytes converted total symbol bits into bytes
 }SBmanager;
 
 
@@ -121,9 +106,9 @@ typedef struct SRAM{
 
 
 typedef struct {	
-	// T_table *t_table; // change it not to use pointer
+	T_table *t_table; // change it not to use pointer
 	value_set *value;
-	//uint32_t size; //not used maybe
+	uint32_t size; 
 }G_manager;
 
 
@@ -133,12 +118,12 @@ typedef struct bloom_params{ //paramater of algo_req
 	TYPE type;
 }bloom_params;
 
-/* maybe not used
+
 struct prefetch_struct {
 	uint32_t ppa;
 	snode *sn;
 };
-*/
+
 
 extern algorithm __bloomftl;
 extern struct blockmanager *bloom_bm;
@@ -200,17 +185,6 @@ int gc_compare(const void *, const void *);
 uint32_t ppa_alloc(uint32_t);
 uint32_t table_lookup(uint32_t, bool);	//Function for BFs of superblock
 int64_t bf_lookup(uint32_t, uint32_t, uint32_t, uint8_t, bool); //Function to find correct BF
-
-//When not reblooming trigger, use this function
-/*
- *  
- *
-*/
-uint32_t check_first(uint32_t); 
-
-
-
-
 algo_req* assign_pseudo_req(TYPE, value_set *, request *);
 
 /* Functions for valid copy in gc */
@@ -223,8 +197,8 @@ void reset_cur_idx(uint32_t);     //Among single blocks, pick empty block
 
 
 //Functions for bloomfilter set
-uint32_t set_bf_table(uint32_t, uint32_t, uint32_t); 
-void set_bf(uint32_t, uint32_t, uint32_t);
+uint32_t set_bf_table(uint32_t, uint32_t); 
+void set_bf(uint32_t, uint32_t);
 
 //Function Bf table reset for a superblock after GC or Reblooming
 void reset_bf_table(uint32_t);
@@ -277,30 +251,26 @@ static inline uint32_t hashing_key(uint32_t key) {
 }
 
 /* Function to check Symbolized BF in BF array, This made by Jiho */ 
-static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
+static inline bool get_bf(uint32_t hashed_key, uint32_t superblk, uint32_t bf_idx) {
     uint32_t bf_bits, h;
 
-    int start = sb[pbn].bf_page[p_idx].s_idx;
-    int length = bf->base_bf[p_idx].s_bits;
+    int start = bf_idx;
+    int length = bf->bits_per_entry;
     int end_byte = (start*length + length - 1) / 8;
     int end_bit = (start*length + length - 1) % 8;
     int symb_arr_sz = end_byte - ((start*length) / 8) + 1;
     uint8_t chunk_sz = length > end_bit + 1 ? end_bit + 1 : length;
-    bf_bits = bf->base_bf[p_idx].bf_bits;
+    bf_bits = bf->m;
 
-#if OFFSET_MODE
-	h = hashfunction(hashed_key) % bf_bits;
-#else
 	h = hashed_key % bf_bits;
-#endif
     // 1
     if(end_bit == 7) {
-        if(((h & ((1 << chunk_sz) - 1)) ^ (b_table[pbn].bf_arr[end_byte] >> (8 - chunk_sz)))) {
+        if(((h & ((1 << chunk_sz) - 1)) ^ (b_table[superblk].bf_arr[end_byte] >> (8 - chunk_sz)))) {
             goto not_exist;
         }
     }
     else{
-        if((h ^ b_table[pbn].bf_arr[end_byte]) & ((1 << chunk_sz) - 1)){
+        if((h ^ b_table[superblk].bf_arr[end_byte]) & ((1 << chunk_sz) - 1)){
             goto not_exist;
         }
     }
@@ -315,7 +285,7 @@ static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
     chunk_sz = length > 8 ? 8 : length;
 
     // 2
-    if((h & ((1 << chunk_sz) - 1)) ^ (b_table[pbn].bf_arr[end_byte] >> (8 - chunk_sz))){
+    if((h & ((1 << chunk_sz) - 1)) ^ (b_table[superblk].bf_arr[end_byte] >> (8 - chunk_sz))){
         goto not_exist;
     }
 
@@ -329,7 +299,7 @@ static inline bool get_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx) {
     chunk_sz = length > 8 ? 8 : length;
 
     // 3
-    if((h & ((1 << chunk_sz) - 1)) ^ (b_table[pbn].bf_arr[end_byte] >> (8 - chunk_sz))){
+    if((h & ((1 << chunk_sz) - 1)) ^ (b_table[superblk].bf_arr[end_byte] >> (8 - chunk_sz))){
         goto not_exist;
     }
 

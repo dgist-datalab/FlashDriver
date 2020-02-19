@@ -10,13 +10,13 @@ algorithm __bloomftl = {
 };
 
 BF *bf;
-struct blockmanager *bloom_bm;
-__segment **g_seg;
+struct blockmanager *bloom_bm; //Blockmanager variable
+__segment **g_seg;			   //Global segment pointer
 
 BF_TABLE *b_table;	//Global BF table
 B_OOB *bloom_oob;	//For OOB, but this will change by new blockmanager
 
-SBmanager *sb;		//BFs information for a superblock
+SBmanager *sb;		//BFs information for a superblock.
 
 //Data structure for GC
 G_manager *gm;		
@@ -79,15 +79,20 @@ uint32_t bloom_create(lower_info *li, blockmanager *bm,  algorithm *algo){
 	bloom_bm = bm;
 	
 	/* Set block configuration & Global bloomfilter */
+
 	ppb = _PPB;
-	pps = SUPER_PAGES
+
+	/* Block per superblock = 4 , I/O PAGESIZE=8KB, ppb = 256 --> pps = 1024
+	 * but, each page size is 4KB, so pps is 2048
+     * C_PAGES means a count that a 4KB physical page can be coalesced page for I/O PAGESIZE.
+	*/
+	pps = SUPER_PAGES;   
 	bf = bf_init(1, pps);
 
 	lnp = L_PAGES;
 	mask = MASK;
 #if REBLOOM
 	r_check = pps/2;
-	bf->base_s_bytes = (bf->base_s_bytes);
 #endif
 
 #if W_BUFF
@@ -172,26 +177,18 @@ uint32_t bloom_create(lower_info *li, blockmanager *bm,  algorithm *algo){
 	printf("Out-of-Range : %ld\n",OOR);
 	//Init BF table for physical blocks
 	for(int i = 0 ; i < n_superblocks; i++){
-		b_table[i].bf_arr = (uint8_t *)malloc(sizeof(uint8_t) * bf->base_s_bytes);	
-		memset(b_table[i].bf_arr, 0, sizeof(uint8_t) * bf->base_s_bytes);
+		b_table[i].bf_arr = (uint8_t *)malloc(sizeof(uint8_t) * bf->total_s_bytes);	
+		memset(b_table[i].bf_arr, 0, sizeof(uint8_t) * bf->total_s_bytes);
 		b_table[i].bf_num = 0;	
 		b_table[i].b_bucket = (__block **)malloc(sizeof(__block *) * SUPERBLK_SIZE);
 		b_table[i].c_block = 0;
 		b_table[i].full = 0;
-		b_table[i].first = 0;
 #if REBLOOM
 		b_table[i].pre_lba = OOR;
 		b_table[i].rb_cnt = 0;
 #endif
-		sb[i].bf_page = (Index *)malloc(sizeof(Index) * pps);
 		sb[i].p_flag = (bool *)malloc(sizeof(bool) * pps);
-
-		memset(sb[i].bf_page, -1, sizeof(Index) * pps);
 		memset(sb[i].p_flag, 0, sizeof(bool) * pps);
-
-		sb[i].num_s_bits = bf->base_s_bits;
-		sb[i].num_s_bytes = bf->base_s_bytes;
-
 	}
 
 
@@ -306,7 +303,7 @@ void bloom_destroy(lower_info *li, algorithm *algo){
 
 	//block Free
 	free(bloom_oob);
-	bm->destory(bm);
+	bloom_bm->destory(bm);
 
 #if W_BUFF
 	skiplist_free(write_buffer);
@@ -401,13 +398,6 @@ uint32_t bloom_read(request* const req){
 
 	//printf("read_cnt : %d\n",read_cnt++);
 	my_req = assign_pseudo_req(DATAR, NULL, req);
-#if !REBLOOM
-	if(!lba_bf[lba]){
-		ppa = check_first(lba);
-		__bloomftl.li->read(ppa, PAGESIZE, req->value, ASYNC, my_req);
-		return 1;
-	}
-#endif
 
 	ppa = table_lookup(lba, 1);
 

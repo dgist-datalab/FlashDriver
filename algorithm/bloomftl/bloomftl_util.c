@@ -91,7 +91,6 @@ uint32_t ppa_alloc(uint32_t lba){
 #if REBLOOM
 	uint32_t pre_lba, rb_cnt;
 #endif
-	//superblk = lba / mask;
 #if HASH_MODE
 	superblk = hashing_key(lba>>S_BIT) % n_superblocks;
 #else
@@ -114,13 +113,11 @@ uint32_t ppa_alloc(uint32_t lba){
 #if REBLOOM
 	//Reblooming trigger
 	if(b_table[superblk].bf_num >= r_check){
-		b_table[superblk].first = 0;
 		rebloom_op(superblk);
 	}
 #endif
 	//GC trigger
 	if(b_table[superblk].full == pps){
-		b_table[superblk].first = 0;
 		bloom_gc(superblk);
 	}else{
 		get_cur_block(superblk);
@@ -146,14 +143,9 @@ uint32_t ppa_alloc(uint32_t lba){
 
 	}
 	b_table[superblk].pre_lba = lba;
+
 #else
-	if(!b_table[superblk].first){
-		b_table[superblk].first = 1;
-		sb[superblk].p_flag[f_idx] = 1;
-		lba_bf[lba] = 0;
-	}else{
-		set_bf_table(lba, f_idx, s_p_idx);
-	}
+	set_bf_table(lba, f_idx, s_p_idx);
 #endif
 
 
@@ -171,7 +163,7 @@ uint32_t ppa_alloc(uint32_t lba){
 }
 
 
-uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
+uint32_t set_bf_table(uint32_t lba, uint32_t f_idx){
 	uint32_t superblk;
 	uint32_t hashkey, bf_idx;
 	
@@ -182,14 +174,11 @@ uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
 #endif
 	
 	hashkey = hashing_key(lba);
-
-	bf_idx  = b_table[superblk].bf_num;	
 	
 	sb[superblk].p_flag[f_idx] = 1;
 
-	sb[superblk].bf_page[s_p_idx].s_idx = bf_idx;
 #if OFFSET_MODE
-	set_bf(hashkey + s_p_idx, superblk, s_p_idx);
+	set_bf(hashkey + s_p_idx, superblk);
 #else
 	set_bf(hashkey,superblk,s_p_idx);
 #endif
@@ -206,40 +195,6 @@ uint32_t set_bf_table(uint32_t lba, uint32_t f_idx, uint32_t s_p_idx){
  *
  * */
 
-uint32_t check_first(uint32_t lba){
-
-	Block *block;
-	uint32_t superblk;
-	uint32_t b_idx, b_offset;
-	uint32_t f_offset = 0;
-	uint32_t ppa = 0;
-	uint32_t oob;
-#if HASH_MODE
-	superblk = hashing_key(lba>>S_BIT) % n_superblocks;
-#else
-	superblk = (lba >> S_BIT) % n_superblocks;
-#endif
-	int32_t full = b_table[superblk].full;
-	for(int i = 0; i < full; i++){
-		if(sb[superblk].p_flag[i]){
-			f_offset = i;
-			break;
-		}
-	}
-	b_idx    = f_offset / ppb;
-	b_offset = f_offset % ppb;
-	
-	block = b_table[superblk].b_bucket[b_idx];
-	ppa   = (block->PBA * ppb) + b_offset;
-	oob   = bloom_oob[ppa].lba;
-
-	if(oob != lba){
-		printf("[READ FAIL] Check first !!\n");
-		exit(0);
-	}
-
-	return ppa;
-}
 
 uint32_t table_lookup(uint32_t lba, bool flag){
 	Block *block;	
@@ -260,6 +215,7 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 
 #if !REBLOOM
 	hashkey = hashing_key(lba);
+	uint32_t bf_idx = b_table[superblk].bf_num-1;
 	for(int i = full-1; i >=0 ; i--){
 		if(sb[superblk].p_flag[i]){
 			b_idx    = i / ppb;
@@ -267,16 +223,19 @@ uint32_t table_lookup(uint32_t lba, bool flag){
 			block    = b_table[superblk].b_bucket[b_idx];
 			s_p_idx  = ((block->PBA * ppb) + b_offset) % pps;
 			ppa      = ((block->PBA * ppb) + b_offset);
-			if(get_bf(hashkey, superblk, s_p_idx)){
+			if(get_bf(hashkey, superblk, bf_idx)){
 				oob = bloom_oob[ppa].lba;
 				if(oob == lba){
-					found_cnt++;
+					if(flag)
+						found_cnt++;
 
 					break;
 				}else{
-					not_found_cnt++;
+					if(flag)
+						not_found_cnt++;
 				}
 			}
+			bf_idx--;
 		}
 	}
 #else
@@ -333,11 +292,7 @@ int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits
 	
 	/*CASE 1 : If lba is head of coalesced lba */
 	if(lba_bf[lba] != 0){
-#if OFFSET_MODE
-		if(get_bf(hashkey + s_p_idx, superblk, s_p_idx)){
-#else
 		if(get_bf(hashkey, superblk, s_p_idx)){
-#endif
 			oob = bloom_oob[ppa].lba;
 			if(oob == lba){
 				if(flag)
@@ -365,11 +320,7 @@ int64_t bf_lookup(uint32_t superblk, uint32_t lba, uint32_t f_idx,  uint8_t bits
 	/*CASE 2 : If lba is not head of coalesced lba */
 	for(int i = 1; i < c_range+1; i++){
 		hashkey = hashing_key(lba-i);
-#if OFFSET_MODE
-		if(get_bf(hashkey+s_p_idx, superblk, s_p_idx)){
-#else
 		if(get_bf(hashkey, superblk, s_p_idx)){
-#endif
 			check_offset = f_offset + i;
 			if(check_offset >= pps)
 				continue;
@@ -471,13 +422,7 @@ void reset_bf_table(uint32_t superblk){
 				}
 				pre_lba = lba;
 #else
-				if(!b_table[superblk].first){
-					b_table[superblk].first = 1;
-					sb[superblk].p_flag[f_offset] = 1;
-					lba_bf[lba] = 0;
-				}else{
-					set_bf_table(lba, f_offset, s_p_idx);
-				}
+				set_bf_table(lba, f_offset, s_p_idx);
 #endif
 			}else{
 #if REBLOOM
@@ -500,10 +445,10 @@ void reset_bf_table(uint32_t superblk){
 
 
 /* Function for set bloomfilter, this made by Jiho */
-void set_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx){
+void set_bf(uint32_t hashed_key, uint32_t superblk){
     uint32_t bf_bits, h;
-    int start = sb[pbn].bf_page[p_idx].s_idx;
-    int length = bf->base_bf[p_idx].s_bits;
+    int start = b_table[superblk].bf_num;
+    int length = bf->bits_per_entry;
     int end_byte, end_bit, arr_sz, remain_chunk;
     uint8_t chunk_sz;
 
@@ -515,17 +460,13 @@ void set_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx){
     chunk_sz = length > end_bit + 1 ? end_bit + 1 : length;
 
 
-    bf_bits = bf->base_bf[p_idx].bf_bits;
-#if OFFSET_MODE
-	h = hashfunction(hashed_key) % bf_bits;
-#else
+    bf_bits = bf->m;
 	h = hashed_key % bf_bits;
-#endif
 
     if(end_bit == 7){
-        b_table[pbn].bf_arr[end_byte] |= h << (8 - chunk_sz);
+        b_table[superblk].bf_arr[end_byte] |= h << (8 - chunk_sz);
     }else{
-        b_table[pbn].bf_arr[end_byte] |= h & ((1 << chunk_sz) -1);
+        b_table[superblk].bf_arr[end_byte] |= h & ((1 << chunk_sz) -1);
     }
     if(arr_sz == 1){
         return ;
@@ -535,14 +476,14 @@ void set_bf(uint32_t hashed_key, uint32_t pbn, uint32_t p_idx){
     remain_chunk -= chunk_sz;
     chunk_sz = remain_chunk > 8 ? 8 : remain_chunk;
 
-    b_table[pbn].bf_arr[end_byte-1] |= h << (8 - chunk_sz);
+    b_table[superblk].bf_arr[end_byte-1] |= h << (8 - chunk_sz);
     if(arr_sz == 2){
         return ;
     }
     h >>= chunk_sz;
     remain_chunk -= chunk_sz;
     chunk_sz = remain_chunk > 8 ? 8 : remain_chunk;
-    b_table[pbn].bf_arr[end_byte-2] |= h << (8 - chunk_sz);
+    b_table[superblk].bf_arr[end_byte-2] |= h << (8 - chunk_sz);
 
     return ;
 }
