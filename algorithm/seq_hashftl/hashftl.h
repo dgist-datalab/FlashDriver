@@ -31,23 +31,28 @@
 
 
 
-
+/* Index table for LBAs
+ * Each entry has a index (offset) of physical block
+ * share = 0 --> Primary table, share = 1 --> Shared block (Secondary block)
+ */
 typedef struct {
 	int16_t ppid;
-	int8_t share;
+	bool share;
 }h_table;
 
+/* Global block table for virtual to physical block */
+/* Share variable is same the Index table share variable */
+/* This table size is so small */
 typedef struct {
 	Block *p_block;
-	int32_t segment_idx;	
-	int8_t share;
+	bool share;
 }v_table;
 
 typedef struct {
 	int32_t lba;
 }H_OOB;
 
-
+/* When GC, data structure for valid copy pages */
 typedef struct SRAM{
 	int32_t oob_ram;
 	PTR ptr_ram;
@@ -59,7 +64,7 @@ typedef struct hash_params{
 	TYPE type;
 }hash_params;
 
-
+// this data structure uses in write buffer 
 struct prefetch_struct {
     uint32_t ppa;
     snode *sn;
@@ -72,11 +77,11 @@ extern algorithm __hashftl;
 //hashftl.c
 extern BM_T *bm;
 extern Block **shared_block;
-extern Block *reserved_b;
+extern Block *reserved_b;	//Reserved block pointer (This uses in GC)
 extern H_OOB *hash_oob;
 
-extern h_table *p_table;
-extern v_table *g_table;
+extern h_table *p_table;	 //Index table, called primary table
+extern v_table *g_table;	 //Global block table
 extern int32_t algo_write_cnt;
 extern int32_t algo_read_cnt;
 extern int32_t gc_write;
@@ -86,8 +91,6 @@ extern int32_t not_found_cnt;
 extern uint32_t lnb;
 extern uint32_t lnp;
 extern int num_op_blocks;
-extern int blocks_per_segment;
-extern int max_segment;
 extern volatile int data_gc_poll;
 
 extern int nob;
@@ -110,18 +113,20 @@ void SRAM_unload(SRAM *sram, uint32_t ppa, int idx, TYPE type);
 
 uint32_t ppa_alloc(uint32_t);
 uint64_t get_hashing(uint32_t);
+
+/* This is a function which decides to set primary block or shared block */
 bool check_block(int32_t virtual_idx);
-int32_t check_mapping(uint32_t lba, int32_t virtual_idx, int32_t segment_idx);
+/* This is a function that set invalid & index table */
+int32_t check_mapping(uint32_t lba, int32_t virtual_idx, int32_t second_idx);
+/* When GC, function to update index table */
 void hash_update_mapping(uint32_t lba, int16_t p_idx);
 
 //hashftl_gc.c
-Block *hash_block_gc(uint32_t lba, int32_t virtual_idx, int32_t segment_idx);
+Block *hash_block_gc(uint32_t lba, int32_t virtual_idx, int32_t second_idx);
 
 
 //md5.c
-uint32_t j_hashing(uint32_t, uint32_t);
 void md5(uint32_t *, size_t, uint64_t *);
-uint32_t b_hash(uint32_t);
 uint32_t fibo_hash(uint32_t);
 
 #endif

@@ -52,35 +52,32 @@ uint32_t ppa_alloc(uint32_t lba){
 
 	int32_t ppa;
 	int32_t virtual_idx;
-	int32_t segment_idx;
+	int32_t second_idx;
 	uint64_t h;
 	bool flag;
-
 	Block *block;
 
 	h = get_hashing(lba);
 
 	virtual_idx = h % lnb;
-	segment_idx = h % num_op_blocks;
-//	segment_idx = virtual_idx / blocks_per_segment;
+	second_idx = h % num_op_blocks;
 	flag = check_block(virtual_idx);
 	if(!flag){
 		block = g_table[virtual_idx].p_block;
 		ppa = (block->PBA * ppb) + block->p_offset++;
-		g_table[virtual_idx].share = 0;	
+		g_table[virtual_idx].share = 0;
 	}else{
-		block = shared_block[segment_idx];
+		block = shared_block[second_idx];
 		if(block->p_offset == ppb){
-			printf("GC trigger!\n");
-			block = hash_block_gc(lba, virtual_idx, segment_idx);	
-			ppa = (block->PBA * ppb) + block->p_offset++;
+			block = hash_block_gc(lba, virtual_idx, second_idx);	
 		}else{
-			ppa = (block->PBA * ppb) + block->p_offset++;
-			g_table[virtual_idx].share = 1;		
+			g_table[virtual_idx].share = 1;
 		}
+
+		ppa = (block->PBA * ppb) + block->p_offset++;
 	}
 
-	check_mapping(lba, virtual_idx,segment_idx);	
+	check_mapping(lba, virtual_idx,second_idx);	
 	p_table[lba].share = g_table[virtual_idx].share;
 	return ppa;
 
@@ -89,15 +86,12 @@ uint32_t ppa_alloc(uint32_t lba){
 uint64_t get_hashing(uint32_t lba){
 
 	int32_t res;
-	int32_t segment_idx;
+	int32_t second_idx;
 	uint32_t lba_md5 = lba;
 	size_t len = sizeof(lba_md5);
 	uint64_t res_md5;
 
 	md5(&lba_md5, len, &res_md5);	
-//	res_md5 = j_hashing(lba_md5,0);
-
-//	res_md5 = b_hash(lba_md5);	
 //	res_md5 = fibo_hash(res_md5);
 	return res_md5;
 }
@@ -105,9 +99,6 @@ uint64_t get_hashing(uint32_t lba){
 
 bool check_block(int32_t virtual_idx){
 	Block *checker = g_table[virtual_idx].p_block;
-
-
-	//If block offset is empty, return ppa;
 	if(checker->p_offset == ppb){
 		return 1;
 	}
@@ -116,24 +107,23 @@ bool check_block(int32_t virtual_idx){
 
 }
 
-int32_t check_mapping(uint32_t lba, int32_t virtual_idx, int32_t segment_idx){
+int32_t check_mapping(uint32_t lba, int32_t virtual_idx, int32_t second_idx){
 	int16_t ppid;
 	
-	int8_t share;
+	bool share;
 	uint32_t ppa;
 	ppid = p_table[lba].ppid;
 	share = p_table[lba].share;
-	Block *block;
+	Block *block = NULL;
 
 
 	if(ppid != -1){
 		if(share == 0){
 			block = g_table[virtual_idx].p_block;
-		}else if(share == 1){
-			block = shared_block[segment_idx];
+		}else {
+			block = shared_block[second_idx];
 		}
 		ppa = (block->PBA * ppb) + ppid;
-		hash_oob[ppa].lba = -1;
 		BM_InvalidatePage(bm, ppa);
 	}
 

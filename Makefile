@@ -2,7 +2,7 @@ export CC=g++
 
 TARGET_INF=interface
 TARGET_LOWER=posix_memory
-TARGET_ALGO=bloomftl
+TARGET_ALGO=seq_hashftl
 #TARGET_ALGO=$(SH_FTLTYPE)
 #TARGET_LOWER=linux_aio
 

@@ -28,8 +28,6 @@ int32_t not_found_cnt;
 uint32_t lnb;
 uint32_t lnp;
 int num_op_blocks;
-int blocks_per_segment;
-int max_segment;
 volatile int data_gc_poll;
 
 #if W_BUFF
@@ -49,20 +47,22 @@ int nop;
 
 uint32_t hash_create(lower_info *li, algorithm *algo){
 
-	int s_size = 4;
 	algo->li = li;
 
 
+	//Set Physical pages and blocks
 	nob = _NOB;
-	ppb = _PPB * s_size;
+	ppb = _PPB;
+	nop = _NOP;
+	
+	//Set Logical pages and blocks
 	lnp = (GIGAUNIT*G) / PAGESIZE;
 	lnb = (GIGAUNIT*G) / (ppb * PAGESIZE);
 
-	nop = nob * ppb;
 
 	printf("------------------- Hash-based FTL ------------------\n");
 
-	//Setup mapping table;
+	//Set mapping table (Index table and block table)
 	p_table = (h_table *)malloc(sizeof(h_table) * lnp);
 	g_table = (v_table *)malloc(sizeof(v_table) * lnb);
 	hash_oob = (H_OOB *)malloc(sizeof(H_OOB) * nop);
@@ -70,19 +70,16 @@ uint32_t hash_create(lower_info *li, algorithm *algo){
 	for(int i = 0 ; i < lnb; i++){
 		g_table[i].p_block = NULL;
 		g_table[i].share = 0;
-		g_table[i].segment_idx = -1;
 	}
 	for(int i = 0 ; i < lnp; i++){
 		p_table[i].ppid = -1;
 		p_table[i].share = 0;
 	}
 	num_op_blocks = nob - lnb - 1;
-	//num_op_blocks = nob - lnb;
-//	blocks_per_segment = ceil((lnb/num_op_blocks))+1;
-//	max_segment = lnb/blocks_per_segment + 1;
-	
-//	shared_block = (Block **)malloc(sizeof(Block *) * num_op_blocks);
 
+	/* Set Global pointers for shared block
+	 * When not empty primary block, mapped to shared block using hash 
+	 */
 	shared_block = (Block **)malloc(sizeof(Block *) * num_op_blocks);
 
 #if W_BUFF
@@ -97,45 +94,25 @@ uint32_t hash_create(lower_info *li, algorithm *algo){
 
 	
 	printf("Total Num op blocks : %d\n", num_op_blocks);
-//	printf("Blocks per segment : %d\n",blocks_per_segment);
-//	printf("Max segment count : %d\n",max_segment);
 	printf("Total logical num of pages  : %d\n",lnp);
-	printf("Total logical superblock num of blocks : %d\n",lnb); 
+	printf("Total logical num of blocks : %d\n",lnb); 
 	printf("Total Physical num of blocks : %d\n",nob);
 	printf("Page per block : %d\n",ppb);
 
 	bm = BM_Init(nob, ppb, 0, 0);
+
 	//Virtual to Physical block mapping
 	for(int i = 0 ; i < lnb; i++){
 		g_table[i].p_block = &bm->barray[i];
 	}
 
 	//Set shared blocks
-	int idx=0;
-	int r_cnt = 0;
-	
+	int idx=0;	
 	for(int i = lnb; i < nob-1; i++){		
 		shared_block[idx++] = &bm->barray[i];
-		r_cnt++;
 	}
-	printf("r_cnt : %d\n",r_cnt);
 	reserved_b = &bm->barray[nob-1];
 	
-	/*	
-	for(int i = 0 ; i < max_segment; i++){
-		idx = lnb + i;
-		shared_block[i] = &bm->block[idx];
-	}
-	//Set queue for reserved blocks
-	
-	for(int i = idx+1; i < nob; i++){
-		enqueue(bm->free_b, &bm->block[i]);
-		r_cnt++;	
-	}
-	
-	printf("remain block : %d\n",r_cnt);
-	*/
-
 	
 	return 1;
 
@@ -147,11 +124,11 @@ uint32_t hash_create(lower_info *li, algorithm *algo){
 void hash_destroy(lower_info *li, algorithm *algo){
 	double memory;
 	printf("--------- Benchmark Result ---------\n\n");
-    printf("Total request  I/O count : %d\n",algo_write_cnt+algo_read_cnt);
-    printf("Total write    I/O count : %d\n",algo_write_cnt);
-    printf("Total read     I/O count : %d\n",algo_read_cnt);
-    printf("Total GC write I/O count : %d\n",gc_write);
-    printf("Total GC read  I/O count : %d\n",gc_read);
+	printf("Total request  I/O count : %d\n",algo_write_cnt+algo_read_cnt);
+	printf("Total write    I/O count : %d\n",algo_write_cnt);
+	printf("Total read     I/O count : %d\n",algo_read_cnt);
+	printf("Total GC write I/O count : %d\n",gc_write);
+	printf("Total GC read  I/O count : %d\n",gc_read);
 	printf("Total Not found count    : %d\n",not_found_cnt);
 	printf("Total erase count        : %d\n",block_erase_cnt);
 	if(algo_write_cnt != 0)
@@ -188,15 +165,11 @@ uint32_t hash_write(request* const req){
 			flush_lba = temp->key;
 			ppa = ppa_alloc(flush_lba);			
 			my_req = assign_pseudo_req(DATAW, temp->value, NULL);
-			__hashftl.li->write(ppa, PAGESIZE, req->value, ASYNC, my_req);
-		
+			__hashftl.li->write(ppa, PAGESIZE, req->value, ASYNC, my_req);	
 			p_idx = ppa % ppb;
 			p_table[flush_lba].ppid = p_idx;
-			BM_InvalidatePage(bm, ppa);
+			BM_ValidatePage(bm, ppa);
 			hash_oob[ppa].lba = flush_lba;
-
-
-
 			
 			temp->value = NULL;
 		}
@@ -222,11 +195,6 @@ uint32_t hash_write(request* const req){
 	req->value = NULL;
 	req->end_req(req);
 
-
-//	pba = ppa / _PPB;
-//	block = &bm->block[pba];
-
-
 	algo_write_cnt++;
 	return 1;
 }
@@ -236,12 +204,12 @@ uint32_t hash_read(request* const req){
 	Block *block;
 	int16_t p_idx;
 	int32_t virtual_idx;
-	int32_t segment_idx;
+	int32_t second_idx;
 	uint64_t h;
 
 	uint32_t lba = req->key;
 	algo_req *my_req;
-	int8_t share = p_table[lba].share;
+	bool share = p_table[lba].share;
 #if W_BUFF
 	snode *temp;
 #endif
@@ -252,11 +220,15 @@ uint32_t hash_read(request* const req){
 
 	h = get_hashing(lba);
 	virtual_idx = h % lnb;
-	segment_idx = h % num_op_blocks;
-	if(share == 0){
+	second_idx = h % num_op_blocks;
+
+	/* If share = 0, this means that it is mapped to primary block
+	 * Otherwise, it is mapped to shared block 
+	 */
+	if(!share){
 		block = g_table[virtual_idx].p_block;
-	}else if (share == 1){
-		block = shared_block[segment_idx];
+	}else{
+		block = shared_block[second_idx];
 	}
 	p_idx = p_table[lba].ppid;
 	if((temp = skiplist_find(write_buffer, lba))){
@@ -279,7 +251,10 @@ uint32_t hash_read(request* const req){
 	my_req = assign_pseudo_req(DATAR, NULL, req);
 
 	check_ppa = (block->PBA * ppb) + p_idx;
-	if(hash_oob[check_ppa].lba != lba){
+
+	//To check correct data, you have to check OOB
+	if(hash_oob[check_ppa].lba != lba){	
+		printf("oob : %d lba : %d\n",hash_oob[check_ppa].lba, lba);
 		printf("Page offset : %d\n",p_idx);
 		printf("ppa allocation error!\n");
 		exit(0);
@@ -307,7 +282,7 @@ void *hash_end_req(algo_req *input){
             break;
         case DATAW:
 #if W_BUFF
-			inf_free_valueset(temp_set, FS_MALLOC_W);
+		inf_free_valueset(temp_set, FS_MALLOC_W);
 #endif
             if(res){
                 res->end_req(res);
