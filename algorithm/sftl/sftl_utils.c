@@ -3,7 +3,7 @@
 
 int32_t head_init(C_TABLE *c_table, int32_t ppa)
 {
-        struct head_node *now;
+	struct head_node *now;
 	if(c_table->head == NULL)
 	{
 		now = (struct head_node *)malloc(sizeof(struct head_node));
@@ -11,10 +11,10 @@ int32_t head_init(C_TABLE *c_table, int32_t ppa)
 		now->next = NULL;
 		c_table->head = c_table->tail = now;
 		return 1;
-        }
+	}
 
 	return 0;
-        
+
 }
 
 struct head_node* head_push(C_TABLE *c_table, struct head_node *find_node, int32_t ppa)
@@ -35,11 +35,11 @@ struct head_node* head_push(C_TABLE *c_table, struct head_node *find_node, int32
 int32_t head_tail_push(C_TABLE *c_table, int32_t ppa)
 {
 	struct head_node *now;
-	
+
 	now = (struct head_node *)malloc(sizeof(struct head_node));
 	now->head_ppa = ppa;
 	now->next = NULL;
-	
+
 
 	if(c_table->head == NULL){
 		c_table->head = c_table->tail = now;
@@ -58,18 +58,18 @@ struct head_node* head_free(C_TABLE *c_table, struct head_node *pre_node)
 {
 	struct head_node *next_node = pre_node->next;
 	struct head_node *tmp = c_table->head;
-	
+
 	if(next_node == c_table->tail){
 		c_table->tail = pre_node;	
 	}
 
 	pre_node->next = next_node->next;
-	
-	
+
+
 	free(next_node);
 	return pre_node;
 
-	
+
 }
 int32_t head_bit_set(int32_t t_index)
 {
@@ -82,7 +82,7 @@ int32_t head_bit_set(int32_t t_index)
 	int32_t b_form_size = 0;
 	int32_t cnt = 0;
 	c_table->bitmap[0] = 1;
-	
+
 	b_form_size += ENTRY_SIZE;
 	cnt++;
 	for(int i = 0 ; i < EPP-1; i++){
@@ -106,7 +106,7 @@ int32_t head_bit_set(int32_t t_index)
 	return b_form_size;
 
 
-	
+
 }
 
 
@@ -133,32 +133,7 @@ struct head_node* sftl_pre_find(C_TABLE *c_table, int32_t offset){
 	}
 	return now;
 }
-/*
-struct head_node* sftl_list_find(C_TABLE *c_table, int32_t offset)
-{
-	struct head_node *now = c_table->head;
-	D_TABLE *p_table = c_table->p_table;
-	for(int i = offset ; i > 0; i--)
-	{
-		if(c_table->bitmap[i] == 1){
-			now = now->next;
-		}
-	}
-	return now;
-}
-*/
-int32_t sftl_list_reset(int32_t t_index){
-	C_TABLE *c_table = &CMT[t_index];
-	D_TABLE *p_table = c_table->p_table;
-	int32_t head_ppa;
-	for(int i = 0 ; i < EPP; i++){
-		if(c_table->bitmap[i] == 1){
-			head_ppa = p_table[i].ppa;
-			head_tail_push(c_table,head_ppa);
-		}
-	}
-	return 1;
-}
+
 
 int32_t sftl_entry_set(int32_t lpa)
 {
@@ -167,21 +142,24 @@ int32_t sftl_entry_set(int32_t lpa)
 
 	struct head_node *tmp = NULL;
 	struct head_node *next_node = NULL;
-	int32_t offset = P_IDX;
-	int32_t head_entry = p_table[offset].ppa;
+	int32_t offset = P_IDX;					  //Offset of translation page
+	int32_t head_entry = p_table[offset].ppa; //Current set ppa for a LBA
 	int32_t next_ppa;
 	int32_t pre_ppa;
 	int32_t idx = 1;
 
 
-	//First offset
+	/* If entry offset of translation page is first */
 	if(offset == 0){
 		tmp = c_table->head;
 		tmp->head_ppa = head_entry;
 		next_ppa = p_table[offset+idx].ppa;
+		
+		/* If a next PPA is not set, return -1 */
 		if(next_ppa == -1)
 			return -1;
 		
+		/* next PPA and current PPA is not sequential, you have to add head entry */
 		if(next_ppa != head_entry + idx){
 			if(c_table->bitmap[offset+idx] == 0){
 				c_table->bitmap[offset+idx] = 1;
@@ -189,16 +167,19 @@ int32_t sftl_entry_set(int32_t lpa)
 				c_table->b_form_size += ENTRY_SIZE;
 				head_push(c_table,tmp,next_ppa);
 			}
-			
+
 		}
 		return offset;
 	}
-	//Last offset
+	/* If entry offset of translation page is last */
 	if(offset == EPP-1){
 		pre_ppa = p_table[offset-idx].ppa;
-		//Previous mapping == NO
+		
+		/* If previous PPA is not set, set entry for current request */
 		if(pre_ppa == -1){
-			//Head_entry == OK
+			/* If a entry set already, just update entry for current request
+			 * Otherwise, add entry in linked-list
+			 */
 			if(c_table->bitmap[offset] == 1){
 				c_table->tail->head_ppa = head_entry;
 			}else{
@@ -207,6 +188,7 @@ int32_t sftl_entry_set(int32_t lpa)
 				c_table->bit_cnt++;
 				head_tail_push(c_table,head_entry);
 			}
+		/* If entry for previous PPA set already, you have to check sequentiality */
 		}else{
 			if(head_entry == pre_ppa + idx){
 				if(c_table->bitmap[offset] == 1){
@@ -227,13 +209,18 @@ int32_t sftl_entry_set(int32_t lpa)
 				}
 			}
 		}
-	}else{
+	}
+	/* If entry offset of translation page is middle (e.g., 0 < offset < 2048) 
+	 * you have to check sequentiality for previous PPA and next PPA
+	 * If entry for previous PPA and next PPA is set, you have to update entry
+	 */
+	else{
 		pre_ppa  = p_table[offset-idx].ppa;
 		next_ppa = p_table[offset+idx].ppa;
 		tmp = sftl_pre_find(c_table, offset);
+		/* Check entry for previous PPA */
 		if(pre_ppa == -1){
 			if(c_table->bitmap[offset] == 1){	
-				//Move cur_head node
 				tmp = tmp->next;
 				tmp->head_ppa = head_entry;
 			}else{
@@ -246,12 +233,12 @@ int32_t sftl_entry_set(int32_t lpa)
 		}else{
 			if(head_entry == pre_ppa + idx){
 				if(c_table->bitmap[offset] == 1){
-					
+
 					tmp = head_free(c_table, tmp);
 					c_table->bitmap[offset] = 0;
 					c_table->bit_cnt--;
 					c_table->b_form_size -= ENTRY_SIZE;
-					
+
 				}
 
 			}else{
@@ -268,6 +255,8 @@ int32_t sftl_entry_set(int32_t lpa)
 				}
 			}
 		}
+
+		/* Check entry for Next PPA */
 		if(next_ppa == -1) return -1;
 
 		if(next_ppa == head_entry+idx){
@@ -288,7 +277,7 @@ int32_t sftl_entry_set(int32_t lpa)
 				head_push(c_table,tmp,next_ppa);
 			}
 		}	
-		
+
 
 	}
 	return offset;
@@ -297,21 +286,21 @@ int32_t sftl_entry_set(int32_t lpa)
 int32_t sftl_entry_free(C_TABLE *evic_ptr)
 {
 	struct head_node *p_node = NULL;
-        if(evic_ptr->head == NULL)
-                return 0;
+	if(evic_ptr->head == NULL)
+		return 0;
 
-        while(evic_ptr->head != NULL)
-        {
-                p_node = evic_ptr->head;
-                evic_ptr->head = evic_ptr->head->next;
-                free(p_node);
-        }
+	while(evic_ptr->head != NULL)
+	{
+		p_node = evic_ptr->head;
+		evic_ptr->head = evic_ptr->head->next;
+		free(p_node);
+	}
 	evic_ptr->tail = evic_ptr->head;
 
-        return 1;
+	return 1;
 
 
-	
+
 }
 
 int32_t sftl_bitmap_size(int32_t lpa)

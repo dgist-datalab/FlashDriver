@@ -24,31 +24,10 @@ int32_t hash_primary_gc(){
 //	printf("gc_count: %d\n", gc_count);
 //	printf("secondary entry: %d\n", num_secondary);
 
-	//victim = BM_Heap_Get_Max(primary_b);
 	victim = BM_Heap_Get_Max(primary_b);
 	if(victim->Invalid == _PPS){ // if all invalid block
 		all = 1;
 	}
-/*	
-	printf("victim-PBA : %d\n",victim->PBA);
-
-	for(int i = 0 ; i < num_b_primary; i++){
-		Block *block = &bm->barray[i];
-		printf("block[%d] = %d\n",i,block->Invalid);
-	}
-	exit(0);
-	
-*/	
-//	heap_print(primary_b);
-	//Set currernt secondary block
-	/*
-	cur_secondary = &bm->barray[pba_secondary];
-	if(cur_secondary->wr_off == _g_ppb){
-		pba_secondary = hash_secondary_gc();
-		pba_secondary = pba_secondary / _g_ppb;
-		cur_secondary = &bm->barray[pba_secondary];
-	}
-	*/
 	//exchange block
 	victim->Invalid = 0;
 	victim->wr_off = 0;
@@ -56,21 +35,13 @@ int32_t hash_primary_gc(){
 	old_block = victim->PBA * _g_ppb;
 	
 
-	//Set currernt offset of currernt secondary block
-	//new_block = cur_secondary->PBA * _g_ppb + cur_secondary->wr_off;	
-	//new_block = reserved->PBA * _g_ppb;
-	//reserved->hn_ptr = BM_Heap_Insert(b_heap, reserved);
-	//reserved = victim;
-	//reserved_pba = victim->PBA;
-
-
+	
 	if(all){ // if all page is invalid, then just trim and return
 		puts("GC() - all");
 		__hashftl.li->trim_block(old_block, false);
 		BM_InitializeBlock(bm, victim->PBA);
 		return victim->PBA;
 	}
-//	printf("Primary GC()");
 
 	valid_page_num = 0;
 	gc_load = 0;
@@ -111,14 +82,10 @@ int32_t hash_primary_gc(){
 			printf("sec_ppa error!!\n");
 			exit(0);
 		}
-		//printf("sec_ppa = %d\n",sec_ppa);	
-		//map_for_gc(d_sram[i].OOB_RAM.lpa, sec_ppa);
-		//SRAM_unload(d_sram, sec_ppa, i);
 		map_for_gc(d_sram[i].OOB_RAM.lpa, sec_ppa);
 		SRAM_unload(d_sram, sec_ppa, i);
 
 	}
-//	printf("pri_count = %d\n",pri_count);
 	pri_count = 0;
 	free(temp_set);
 	free(d_sram);
@@ -155,8 +122,6 @@ int32_t hash_secondary_gc(){
 
 	all = 0;
 	gc_count++;
-//	printf("gc_count: %d\n", gc_count);
-//	printf("secondary entry: %d\n", num_secondary);
 
 	victim = BM_Heap_Get_Max(secondary_b);
 	if(victim->Invalid == _PPS){ // if all invalid block
@@ -165,16 +130,6 @@ int32_t hash_secondary_gc(){
 		printf("secondary full!!\n");
 		exit(0);	
 	}
-/*
-	printf("victim-PBA : %d\n",victim->PBA);
-
-        for(int i = start_b_secondary ; i < _g_nob; i++){
-                Block *block = &bm->barray[i];
-                printf("block[%d] = %d\n",i,block->Invalid);
-        }
-        
-        exit(0);
-*/
 
 	//exchange block
 	victim->Invalid = 0;

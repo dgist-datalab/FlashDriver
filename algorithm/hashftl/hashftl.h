@@ -38,7 +38,6 @@ typedef struct secondary_table{
     int32_t ppa;
     int32_t lpa;
     bool state; // CLEAN or DIRTY
-    bool gc_flag;
 
 } SECONDARY_TABLE;
 
@@ -81,11 +80,11 @@ extern struct gc_block *gc_block;
 
 
 extern PRIMARY_TABLE *pri_table;     // primary table
-extern SECONDARY_TABLE *sec_table;   //secondary table
-extern H_OOB *hash_OOB;	   // Page level OOB.
+extern SECONDARY_TABLE *sec_table;   // secondary table
+extern H_OOB *hash_OOB;				 // Page level OOB.
 
 extern BM_T *bm;
-extern Block *reserved;    //reserved.
+extern Block *reserved;				 //reserved.
 extern int32_t reserved_pba;
 extern int32_t empty_idx;
 
@@ -160,7 +159,6 @@ int32_t map_for_gc(int32_t lpa, int32_t ppa);
 int32_t map_for_s_gc(int32_t lpa, int32_t ppa);
 
 int32_t map_for_remap(int32_t lpa, int32_t ppa, int32_t hid, int32_t *cal_ppid, int32_t secondary_idx);
-//int32_t map_for_remap(int32_t ppa, int32_t hid, int32_t cal_ppid, int32_t secondary_idx);
 
 
 int32_t remap_sec_to_pri(int32_t v_pba, int32_t* cal_ppid);

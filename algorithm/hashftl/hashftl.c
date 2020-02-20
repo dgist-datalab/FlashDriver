@@ -12,7 +12,7 @@ algorithm __hashftl = {
 };
 
 //heap globals.
-b_queue *free_b;                 //Set queue to manage free blocks
+b_queue *free_b;         //Set queue to manage free blocks
 b_queue *victim_b;		 //Set queue to manage victim blocks
 Heap *b_heap;			 //Set heap structure to manage primary blocks
 Heap *primary_b;
@@ -129,7 +129,6 @@ uint32_t hash_create(lower_info *li, algorithm *algo){
 	loop_gc = 8;
 
 
-//	gc_block = (struct gc_block *)malloc(sizeof(struct gc_block) * _g_ppb);
 	
 
 	// Setting secondary
@@ -151,11 +150,11 @@ uint32_t hash_create(lower_info *li, algorithm *algo){
 		bit_cnt++;
 	}
 
-	num_secondary = 0;                                    //init # of secondary table entry
-	num_hid = 3;					      //Set h_bit (3)
-	num_page_off = bit_cnt - 1;			      //Set p_bit (8)
+	num_secondary = 0;                               //init # of secondary table entry
+	num_hid = 3;									 //Set h_bit (3)
+	num_page_off = bit_cnt - 1;						 //Set p_bit (8)
 	//num_ppid = num_page_off;
-	num_ppid = num_page_off;			      //Set m_bit (6)
+	num_ppid = num_page_off;						//Set m_bit (6)
 	hid_secondary = pow(2, num_hid) - 1;
 
 	num_write = 0;
@@ -164,25 +163,9 @@ uint32_t hash_create(lower_info *li, algorithm *algo){
 	// Map lower info
 	algo->li = li;
 	num_entry_segment = max_secondary / pow(2,num_ppid);
-	//print information
 
 	//Set block information
 	bm = BM_Init(_g_nob, _g_ppb, 2, 1);		      //Init Physical blocks
-	/*
-	
-	Block *t_block;
-	for(int i = 0; i < num_b_primary; i++){
-		t_block = &bm->barray[i];
-		t_block->Invalid = _g_ppb;
-		t_block->type = 1;
-	}
-	*/
-	/*
-	for(int i=1;i<_g_nob;i++){
-		BM_Enqueue(free_b, &bm->barray[i]);
-	}
-	*/
-
 
 	//Reserved block for secondary block
 	reserved = &bm->barray[_g_nob-1];			      //reserved block for GC
@@ -227,16 +210,7 @@ uint32_t hash_create(lower_info *li, algorithm *algo){
 		sec_table[i].ppa = -1;
 		sec_table[i].lpa = -1;
 		sec_table[i].state = CLEAN;
-//		sec_table[i].gc_flag = 0;
 	}
-/*
-	for(int i = 0; i < _g_ppb; i++){
-		gc_block[i].hid = -1;
-		gc_block[i].ppid = -1;
-		gc_block[i].idx_secondary = -1;
-		gc_block[i].state = 0;
-	}
-*/
 	return 0;
 }
 
@@ -292,8 +266,6 @@ void hash_destroy(lower_info *li, algorithm *algo){
 	/* Print information */
 	printf("Hash FTL summary start---------------------------------\n");
 	printf("# of gc: %d\n", gc_count);
-//	printf("# of gc due to remap: %d\n", re_gc_count);
-//	printf("# of moved page due to remap: %d\n\n", re_page_count);
 
 
 	printf("Total secondary entries: %d\n", max_secondary);
@@ -395,9 +367,11 @@ uint32_t hash_set(request* const req){
 	pri_table[lpa].ppa = ppa;
 
 	
-	if(hid < hid_secondary){          //if hid is primary
+	if(hid < hid_secondary){          
+		//if hid is primary
 		pri_table[lpa].ppid = cal_ppid;
-	}else{    //if hid is secondary
+	}else{    
+		//if hid is secondary
 		//find free entry at secondary table
 		idx_secondary = set_idx_secondary();
 	

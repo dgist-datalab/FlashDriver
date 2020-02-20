@@ -44,7 +44,6 @@
 #if S_FTL
 #define BITMAP_SIZE (EPP / 8) // Bitmap_size for SFTL
 #define ENTRY_SIZE 8          // ppa pointer and linked list pointer
-#define SFTL_SETTING 0	      // Normal 0, RED_BLACK 1, HASH 2
 #endif
 
 
@@ -77,8 +76,6 @@ typedef struct cached_table{
 	bool form_check;   //In-Flash = 0, Bitmap = 1
 	bool evic_flag;
 	bool gc_flag;
-
-	Redblack rb_tree;
 
 #endif
 	uint32_t read_hit;
@@ -209,30 +206,26 @@ int32_t dpage_GC();
 
 #if S_FTL
 
-//For head_entries management
+/* Node insert functions */
 int32_t head_init(C_TABLE *, int32_t);
 struct head_node* head_free(C_TABLE *, struct head_node *);
 struct head_node* head_push(C_TABLE*, struct head_node **, int32_t);
 int32_t head_tail_push(C_TABLE *, int32_t);
+/* Setup bitmap for a translation page */
 int32_t head_bit_set(int32_t);
+/* Setup entries for a translation page */
 int32_t head_list_set(int32_t);
-//For bitmap & entry management
+/* This is a function that sets head entry */
 int32_t sftl_entry_set(int32_t);
+/* This is a function to free memory for bitmap form entries */
 int32_t sftl_entry_free(C_TABLE *);
-//struct head_node* sftl_list_find(C_TABLE *, int32_t);
+/* This is a function to find previous node */
 struct head_node* sftl_pre_find(C_TABLE *, int32_t);
-//int32_t sftl_list_free(int32_t, int32_t);
 int32_t sftl_bitmap_size(int32_t);
-int32_t sftl_list_reset(int32_t);
 //To get ppa
 int32_t get_mapped_ppa(int32_t);
 //Memory size calculation
 int32_t cache_mapped_size();
-
-
-//For Red_black tree SFTL
-#if SFTL_SETTING
-
 
 #endif
 

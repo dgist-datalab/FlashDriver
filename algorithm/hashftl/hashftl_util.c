@@ -98,7 +98,6 @@ int32_t check_written(int32_t pba, int32_t lpa, int32_t* cal_ppid)
 		*cal_ppid = b_index;
 		block->wr_off++;
 
-
 	}
 	else{
 		//ppid cannot represent all page offset
