@@ -31,16 +31,19 @@ KEYT keygenerator_type(uint32_t range, int type);
 pthread_mutex_t bench_lock;
 uint8_t *bitmap;
 static void bitmap_set(KEYT key){
+	/*
 	uint32_t block=key/8;
 	uint8_t offset=key%8;
 
-	bitmap[block]|=(1<<offset);
+	bitmap[block]|=(1<<offset);*/
 }
 static bool bitmap_get(KEYT key){
+	/*
 	uint32_t block=key/8;
 	uint8_t offset=key%8;
 
-	return bitmap[block]&(1<<offset);
+	return bitmap[block]&(1<<offset);*/
+	return false;
 }
 
 void bench_init(){
@@ -484,7 +487,8 @@ void bench_reap_data(request *const req,lower_info *li){
 	}
 #ifdef CDF
 	int slot_num=req->latency_checker.micro_time/TIMESLOT;
-	if(req->type==FS_GET_T){
+	if(slot_num<0) abort();
+	if(req->type==FS_GET_T || req->type==FS_NOTFOUND_T){
 		if(slot_num>=1000000/TIMESLOT){
 			_data->read_cdf[1000000/TIMESLOT]++;
 		}
@@ -503,7 +507,7 @@ void bench_reap_data(request *const req,lower_info *li){
 #endif
 	if(_m->empty){
 		_m->m_num++;
-		if(req->type==FS_GET_T){
+		if(req->type==FS_GET_T || req->type==FS_NOTFOUND_T){
 			_m->read_cnt++;
 			_data->read_cnt++;
 		}

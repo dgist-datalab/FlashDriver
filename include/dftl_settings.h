@@ -25,4 +25,6 @@
 // max size of write buffer
 #define MAX_SL 1024
 
+//#define BLOOMSIMUL
+
 #endif

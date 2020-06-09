@@ -24,22 +24,21 @@
 
 #define TOTALSIZE (300L*G)
 #define REALSIZE (512L*G)
-#define PAGESIZE (16*K)
+#define PAGESIZE (8*K)
 #define _PPB (256)
 #define _PPS (1<<14)
 #define BPS ((_PPS)/_PPB)
 
 #elif defined(SLC)
 
-#define GIGAUNIT 64L
-#define TOTALSIZE (GIGAUNIT*G)
+#define GIGAUNIT 21L
+#define TOTALSIZE ((GIGAUNIT)*G)
 #define REALSIZE (512L*G)
 #define DEVSIZE (64L * G)
-#define PAGESIZE (16*K)
-#define _PPB (512)
-#define _PPS (512)
-#define BPS (1)
-#define LPP (PAGESIZE/4/K)
+#define PAGESIZE (8*K)
+#define _PPB (256)
+#define _PPS (1<<14)
+#define BPS (64)
 
 #endif
 
@@ -49,7 +48,7 @@
 #define _NOB (BPS*_NOS)
 #define _RNOS (REALSIZE/(_PPS*PAGESIZE))//real number of segment
 
-#define RANGE ((TOTALSIZE/4/K*100/(100+7)))
+#define RANGE ((GIGAUNIT)*(M/PAGESIZE)*1024L*0.75)
 //#define RANGE ((GIGAUNIT)*(M/PAGESIZE)*1024L*0.8)
 //#define RANGE (50*(M/PAGESIZE)*1024L*0.8)
 

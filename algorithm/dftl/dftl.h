@@ -32,8 +32,8 @@
 #define DGC_W GCDW
 
 #define EPP (PAGESIZE / 4)  // Number of table entries per page
-#define D_IDX (lpa / EPP)   // Idx of directory table
-#define P_IDX (lpa % EPP)   // Idx of page table
+#define D_IDX(a) (a / EPP)   // Idx of directory table
+#define P_IDX(a) (a % EPP)   // Idx of page table
 
 #define CLEAN 0
 #define DIRTY 1
@@ -63,7 +63,7 @@ typedef struct cached_table{
 
 // OOB data structure
 typedef struct demand_OOB{
-    int32_t lpa;
+    int32_t lpa[LPP];
 } D_OOB;
 
 // SRAM data structure (used to hold pages temporarily when GC)

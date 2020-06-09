@@ -3,15 +3,15 @@
 #include "BM.h"
 
 int32_t numBlock;
-int32_t PagePerBlock;
+int32_t LPagePerBlock;
 int32_t numBITMAPB; // number of Bytes(elements) in each bitmap
 
 /* Initiation of Block Manager */
 BM_T* BM_Init(int32_t nob, int32_t ppb, int h_count, int q_count)
 {
 	numBlock = nob;
-	PagePerBlock = ppb;
-	numBITMAPB = (PagePerBlock % numBits_ValidP > 0) + (PagePerBlock/numBits_ValidP);
+	LPagePerBlock = ppb*LPP;
+	numBITMAPB = (LPagePerBlock % numBits_ValidP > 0) + (LPagePerBlock/numBits_ValidP);
 
 	BM_T* res = (BM_T*)malloc(sizeof(BM_T));
 	res->barray = (Block*)malloc(sizeof(Block) * numBlock);
@@ -33,7 +33,7 @@ BM_T* BM_Init(int32_t nob, int32_t ppb, int h_count, int q_count)
 int32_t BM_InitBlockArray(Block* blockArray)
 {
 	for (int i=0; i<numBlock; ++i){
-		blockArray[i].PBA = i;
+		blockArray[i].idx = i;
 		blockArray[i].Invalid = 0;
 		blockArray[i].hn_ptr = NULL;
 		blockArray[i].type = 0;

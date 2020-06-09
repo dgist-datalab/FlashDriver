@@ -70,10 +70,10 @@ void merge_w_origin(D_TABLE *src, D_TABLE *dst){ // merge trans table.
         }
     }
 }
-
+/*
 int lpa_compare(const void *a, const void *b){
-    uint32_t num1 = (uint32_t)(((D_SRAM*)a)->OOB_RAM.lpa);
-    uint32_t num2 = (uint32_t)(((D_SRAM*)b)->OOB_RAM.lpa);
+ //   uint32_t num1 = (uint32_t)(((D_SRAM*)a)->OOB_RAM.lpa);
+   // uint32_t num2 = (uint32_t)(((D_SRAM*)b)->OOB_RAM.lpa);
     if(num1 < num2){
         return -1;
     }
@@ -83,12 +83,15 @@ int lpa_compare(const void *a, const void *b){
     else{
         return 1;
     }
-}
+}*/
 
 int32_t tp_alloc(char req_t, bool *flag){
     static int32_t ppa = -1; // static for ppa
+	if(ppa==4194303){
+		printf("break!\n");
+	}
     Block *block;
-    if(ppa != -1 && ppa % p_p_b == 0){
+    if(ppa != -1 && ppa % (p_p_b * LPP) == 0){
         ppa = -1; // initialize that this need new block
     }
     if(ppa == -1){
@@ -103,13 +106,15 @@ int32_t tp_alloc(char req_t, bool *flag){
             if(flag){
                 *flag = true;
             }
-            return ppa++;
+			uint32_t res=ppa;
+			ppa+=LPP;
+            return res;
         }
         block = BM_Dequeue(free_b); // dequeue block from free block queue
         if(block){
             block->hn_ptr = BM_Heap_Insert(trans_b, block);
             block->type = 1; // 1 is translation block
-            ppa = block->PBA * p_p_b;
+            ppa = block->idx * p_p_b * LPP; 
         }
         else{
             ppa = tpage_GC();
@@ -124,13 +129,15 @@ int32_t tp_alloc(char req_t, bool *flag){
             }
         }
     }
-    return ppa++;
+	uint32_t res=ppa;
+    ppa+=LPP;
+	return res;
 }
 
 int32_t dp_alloc(){ // Data page allocation
     static int32_t ppa = -1; // static for ppa
     Block *block;
-    if(ppa != -1 && ppa % p_p_b == 0){
+    if(ppa != -1 && ppa % (p_p_b * LPP) == 0){
         ppa = -1; // initialize that this need new block
     }
     if(ppa == -1){
@@ -142,12 +149,15 @@ int32_t dp_alloc(){ // Data page allocation
         if(block){
             block->hn_ptr = BM_Heap_Insert(data_b, block);
             block->type = 2; // 2 is data block
-            ppa = block->PBA * p_p_b;
+            ppa = block->idx * p_p_b * LPP;
         }
         else{
             ppa = dpage_GC();
         }
     }
+	if(ppa==1038457){
+		printf("break!\n");
+	}
     return ppa++;
 }
 
@@ -155,13 +165,15 @@ value_set* SRAM_load(D_SRAM* d_sram, int32_t ppa, int idx, char t) {
     value_set *temp_value_set;
     temp_value_set = inf_get_valueset(NULL, FS_MALLOC_R, PAGESIZE);
     if(t == 'T'){
-        __demand.li->read(ppa, PAGESIZE, temp_value_set, 1, assign_pseudo_req(TGC_R, NULL, NULL));
+        __demand.li->read(ppa/LPP, PAGESIZE, temp_value_set, 1, assign_pseudo_req(TGC_R, NULL, NULL));
     }
     else{
-        __demand.li->read(ppa, PAGESIZE, temp_value_set, 1, assign_pseudo_req(DGC_R, NULL, NULL));
+        __demand.li->read(ppa/LPP, PAGESIZE, temp_value_set, 1, assign_pseudo_req(DGC_R, NULL, NULL));
     }
     d_sram[idx].DATA_RAM = (int32_t *)malloc(PAGESIZE);
-    d_sram[idx].OOB_RAM = demand_OOB[ppa];
+	for(uint32_t i=0; i<LPP; i++){
+	    d_sram[idx].OOB_RAM.lpa[i] = demand_OOB[ppa/LPP].lpa[i];
+	}
     d_sram[idx].origin_ppa = ppa;
     return temp_value_set;
 }
@@ -174,12 +186,17 @@ void SRAM_unload(D_SRAM* d_sram, int32_t ppa, int idx, char t){
     temp_value_set = inf_get_valueset(NULL, FS_MALLOC_W, PAGESIZE);
 #endif
     if(t == 'T'){
-        __demand.li->write(ppa, PAGESIZE, temp_value_set, ASYNC, assign_pseudo_req(TGC_W, temp_value_set, NULL));
+        __demand.li->write(ppa/LPP, PAGESIZE, temp_value_set, ASYNC, assign_pseudo_req(TGC_W, temp_value_set, NULL));
     }
     else{
-        __demand.li->write(ppa, PAGESIZE, temp_value_set, ASYNC, assign_pseudo_req(DGC_W, temp_value_set, NULL));
+        __demand.li->write(ppa/LPP, PAGESIZE, temp_value_set, ASYNC, assign_pseudo_req(DGC_W, temp_value_set, NULL));
     }
-    demand_OOB[ppa] = d_sram[idx].OOB_RAM;
+	for(uint32_t i=0; i<LPP; i++){
+	    demand_OOB[ppa/LPP].lpa[i] = d_sram[idx].OOB_RAM.lpa[i];
+		if(demand_OOB[ppa/LPP].lpa[i]>RANGE){
+			abort();
+		}
+	}
     BM_ValidatePage(bm, ppa);
     free(d_sram[idx].DATA_RAM);
 }

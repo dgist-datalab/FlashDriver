@@ -20,7 +20,7 @@ typedef struct {
 } h_node;
 
 typedef struct { // 13 + PPB/8 bytes
-	PBA_T		PBA;			/* PBA of this block */
+	PBA_T		idx;			/* PBA of this block */
 	IV_T		Invalid;		/* Number of Invalid pages in this block*/
 	h_node* 	hn_ptr;
 	TYPE_T		type;
@@ -53,7 +53,7 @@ typedef struct _blockmanager{
 } BM_T;
 
 extern int32_t numBlock;
-extern int32_t PagePerBlock;
+extern int32_t LPagePerBlock;
 extern int32_t numBITMAPB; // number of Bytes(elements) in each bitmap
 
 
@@ -62,7 +62,7 @@ extern int32_t numBITMAPB; // number of Bytes(elements) in each bitmap
 #define BM_INVALIDPAGE	(0x00)
 
 /* Macros for finding member variables from Block ptr */
-#define BM_GETPBA(ptr_block)		((Block*)ptr_block)->PBA
+#define BM_GETIDX(ptr_block)		((Block*)ptr_block)->idx
 #define BM_GETINVALID(ptr_block)	((Block*)ptr_block)->Invalid
 #define BM_GETVALIDP(ptr_block)		((Block*)ptr_block)->ValidP
 
@@ -101,17 +101,17 @@ void* dequeue(b_queue *q);
 
 /* BM_Interface.h */
 // Interface Functions for 'Valid bitmap(ValidP)' + 'number of invalid pages(Invalid)' change 
-static inline PBA_T BM_PPA_TO_PBA(PPA_T PPA) {
-	return PPA/PagePerBlock;
+static inline PBA_T BM_PPA_TO_IDX(PPA_T PPA) {
+	return PPA/LPagePerBlock;
 }
 int32_t		BM_IsValidPage(BM_T* BM, PPA_T PPA);
 int32_t		BM_ValidatePage(BM_T* BM, PPA_T PPA);
 int32_t		BM_InvalidatePage(BM_T* BM, PPA_T PPA);
 
 /* For GC, Call this function to initialize vimctim block */
-static inline void BM_InitializeBlock(BM_T* BM, PBA_T PBA) {
-	memset(BM->barray[PBA].ValidP, BM_INVALIDPAGE, numBITMAPB);
-	BM->barray[PBA].Invalid = 0;
+static inline void BM_InitializeBlock(BM_T* BM, PBA_T idx) {
+	memset(BM->barray[idx].ValidP, BM_INVALIDPAGE, numBITMAPB);
+	BM->barray[idx].Invalid = 0;
 }
 
 /* Initalize all Block */
@@ -123,31 +123,6 @@ static inline void BM_InitializeAll(BM_T* BM) {
 }
 
 // Interface Functions for 'number of invalid pages(Invalid)' change only (no Bitmap change)
-static inline void BM_InvalidPlus_PBA(BM_T* BM, PBA_T PBA) {
-	BM->barray[PBA].Invalid++;
-}
-static inline void BM_InvalidPlus_PPA(BM_T* BM, PPA_T PPA) {
-	BM->barray[BM_PPA_TO_PBA(PPA)].Invalid++;
-}
-static inline void BM_InvalidMinus_PBA(BM_T* BM, PBA_T PBA) {
-	BM->barray[PBA].Invalid--;
-}
-static inline void BM_InvalidMinus_PPA(BM_T* BM, PPA_T PPA) {
-	BM->barray[BM_PPA_TO_PBA(PPA)].Invalid--;
-}
-static inline void BM_InvalidZero_PBA(BM_T* BM, PBA_T PBA) {
-	BM->barray[PBA].Invalid = 0;
-}
-static inline void BM_InvalidZero_PPA(BM_T* BM, PPA_T PPA) {
-	BM->barray[BM_PPA_TO_PBA(PPA)].Invalid = 0;
-}
-static inline void BM_InvalidPPB_PBA(BM_T* BM, PBA_T PBA) {
-	BM->barray[PBA].Invalid = PagePerBlock;
-}
-static inline void BM_InvalidPPB_PPA(BM_T* BM, PPA_T PPA) {
-	BM->barray[BM_PPA_TO_PBA(PPA)].Invalid = PagePerBlock;
-}
-
 #endif // !_BM_H_
 
 

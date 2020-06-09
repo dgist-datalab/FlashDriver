@@ -14,7 +14,8 @@
 #define SlaveControlAddrWidth 5
 #define BurstLenSize 10
 #define project_dir "$(DTOP)"
-#define MainClockPeriod 5
+//#define MainClockPeriod 5
+#define MainClockPeriod 5.714000
 #define DerivedClockPeriod 9.091000
 #define XILINX 1
 #define ZYNQ ""

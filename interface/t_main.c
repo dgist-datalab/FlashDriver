@@ -4,18 +4,36 @@
 #include <unistd.h>
 #include <limits.h>
 #include <signal.h>
+#include <math.h>
 #include "../include/lsm_settings.h"
 #include "../include/FS.h"
 #include "../include/settings.h"
 #include "../include/types.h"
 #include "../bench/bench.h"
+#include "../bench/measurement.h"
 #include "interface.h"
 
-MeasureTime bt;
-MeasureTime st;
-float total_sec;
-int write_cnt, read_cnt;
+//#define LOAD_FILE CMD_LFILE
+//#define RUN_FILE  CMD_RFILE
+//#define LOAD_CYCLE CMD_LCYCLE
+//#define RUN_CYCLE CMD_RCYCLE
 
+
+#define LOAD_FILE FSERVER_LOAD_16
+#define RUN_FILE  FSERVER_RUN_16
+#define LOAD_CYCLE 1
+#define RUN_CYCLE 1 
+
+#define BLK_NUM 8
+MeasureTime *bt;
+MeasureTime *st;
+float total_sec;
+int32_t req_t_cnt;
+int32_t write_cnt; 
+int32_t read_cnt;
+int32_t real_w_cnt;
+int32_t real_r_cnt;
+/*
 void log_print(int sig){
  	if (total_sec) {
 	printf("\ntotal sec: %.2f\n", total_sec);
@@ -26,88 +44,213 @@ void log_print(int sig){
 	inf_free();
 	exit(1);
 }
-
+*/
 int main(int argc, char *argv[]) {
- 	int rw, len;
+ 	int len;
+	int8_t fs_type;
 	unsigned long long int offset;
-	FILE *fp;
-
+	FILE *w_fp;
+	FILE *r_fp;
+	char command[2];
+	char type[5];
+	double cal_len;
 	struct sigaction sa;
-	sa.sa_handler = log_print;
-	sigaction(SIGINT, &sa, NULL);
-
-	measure_init(&bt);
-	measure_init(&st);
+	uint64_t c_number = 0;
+	/*
+	pritnf("### LOAD_FILE: %s ###\n", LOAD_FILE);
+	pritnf("### RUN_FILE: %s ###\n", RUN_FILE);
+	pritnf("### LOAD_CYCLE: %d ###\n", LOAD_CYCLE);
+	pritnf("### RUN_CYCLE: %d ###\n", RUN_CYCLE);
+*/
+	//sa.sa_handler = log_print;
+	//sigaction(SIGINT, &sa, NULL);
+	bt = (MeasureTime *)malloc(sizeof(MeasureTime));
+	st = (MeasureTime *)malloc(sizeof(MeasureTime));
+	measure_init(bt);
+	measure_init(st);
 
 	inf_init();
-	bench_init(1);
+	bench_init();
 	bench_add(NOR,0,-1,-1);
 	char t_value[PAGESIZE];
 	memset(t_value, 'x', PAGESIZE);
+	/*	
 	value_set dummy;
 	dummy.value=t_value;
 	dummy.dmatag=-1;
 	dummy.length=PAGESIZE;
-
-	fp = fopen("trace_base.out", "r");
-	if (fp == NULL) {
+	*/
+	
+	if(argc < 2){
+		printf("File input error!\n");
+		exit(0);
+	}
+	
+	printf("%s load start!\n",argv[1]);
+	w_fp = fopen(argv[1], "r");
+	if (w_fp == NULL) {
 		printf("No file\n");
 		return 1;
 	}
 
-	printf("layout!\n");
-	while (fscanf(fp, "%d %llu %d", &rw, &offset, &len) != EOF) {
-	 	static int cnt = 0;
-		for (int i = 0; i < len; i++) {
-			inf_make_req(rw, offset+i, &dummy,0);
-			/*if (++cnt % 10240 == 0) {
-				printf("cnt -- %d\n", cnt);
-				printf("%d %llu %d\n", rw, offset, len);
-			}*/
-		}
+	//Set sequential write for GC
+	/*		
+	int32_t set_range = RANGE;
+	for(int i = 0 ; i < set_range; i++){
+		inf_make_req(FS_SET_T, i, t_value, PAGESIZE, 0);
 	}
-	printf("layout complete\n\n");
-	fclose(fp);
-
-	fp = fopen(argv[1], "r");
-	if (fp == NULL) {
-		printf("No file\n");
-		return 1;
+	*/
+	/*
+	set_range = set_range;
+	for(int i = 0 ; i < set_range; i++){
+		int ran_set = rand() % set_range;
+		inf_make_req(FS_SET_T, i, t_value, PAGESIZE, 0);
 	}
+	*/
 
-	MS(&bt);
-	MS(&st);
-	printf("bench!\n");
-	while (fscanf(fp, "%d %llu %d", &rw, &offset, &len) != EOF) {
-	 	static int cnt = 0;
-		for (int i = 0; i < len; i++) {
-			inf_make_req(rw, offset+i, &dummy,0);
-			if (rw == 1) {
-			 	write_cnt++;
-			} else if (rw == 2) {
-			 	read_cnt++;
+	double time;	
+   
+	int32_t cnt = 0;
+	for(int i = 0; i < LOAD_CYCLE; i++){
+		printf("LOAD CYCLE : %d\n",i);
+		while (fscanf(w_fp, "%s %s %llu %lf %lf", command, type, &offset, &cal_len, &time) != EOF) {
+			cnt++;
+			if(command[0] == 'D'){
+				offset = offset / BLK_NUM;
+				len = ceil(cal_len / BLK_NUM);
+				if(offset + len > RANGE){
+					continue;
+				}
+				if(type[0] == 'R'){
+					fs_type = FS_GET_T;
+				}else{
+					fs_type = FS_SET_T;
+				}
+			}else{
+				continue;
 			}
 
-			/*if (++cnt % 10240 == 0) {
-			 	MA(&st);
-				total_sec = st.adding.tv_sec + (float)st.adding.tv_usec/1000000;
-	  			printf("\ntotal sec: %.2f\n", total_sec);
-	 			printf("read throughput: %.2fMB/s\n", (float)read_cnt*8192/total_sec/1000/1000);
-				printf("write throughput: %.2fMB/s\n\n", (float)write_cnt*8192/total_sec/1000/1000);
-				MS(&st);
-			}*/
+			for (int i = 0; i < len; i++) {
+
+				inf_make_req(fs_type, offset+i, t_value, PAGESIZE, 0);
+				if (fs_type == FS_SET_T) {
+					write_cnt++;
+				}
+
+				else if (fs_type == FS_GET_T) {
+					read_cnt++;
+				}
+
+				/*if (++cnt % 10240 == 0) {
+				  printf("cnt -- %d\n", cnt);
+				  printf("%d %llu %d\n", rw, offset, len);
+				  }*/
+			}
+	//		memset(command,0,sizeof(char) * 2);
+	//		memset(type,0,sizeof(char)*5);
+	//		fflush(stdout);
+			if(cnt%1000==0){
+				printf("first phase cnt:%d\n",cnt);
+			}
 		}
+		fseek(w_fp,0,SEEK_SET);
 	}
-	MA(&bt);
-	fclose(fp);
+	printf("%s load complete!\n\n",argv[1]);
+	printf("Load write : %d\n",write_cnt);
+	printf("Load read  : %d\n",read_cnt);
+	
+	
+	fclose(w_fp);
+	printf("%s bench start!\n", argv[2]);
+	r_fp = fopen(argv[2], "r");
+#if !FILEBENCH_SET
+	if (r_fp == NULL) {
+		printf("No file\n");
+		return 1;
+	}
+//	trace_cdf = (uint64_t *)malloc(sizeof(uint64_t) * (1000000/TIMESLOT)+1);
+//	memset(trace_cdf, 0, sizeof(uint64_t) * ((1000000/TIMESLOT)+1));
+	measure_start(bt);	
+	cnt = 0;
 
-	total_sec = bt.adding.tv_sec + (float)bt.adding.tv_usec/1000000;
+	for(int i = 0 ; i < RUN_CYCLE; i++){
+		printf("RUN_CYCLE= %d\n",i);
+		while (fscanf(r_fp, "%s %s %llu %lf", command, type, &offset, &cal_len) != EOF) {
+			cnt++;
+			if(command[0] == 'D'){
+				offset = offset / BLK_NUM;
+				len = ceil(cal_len / BLK_NUM);
+				if(offset + len > RANGE){
+					continue;
+				}
+				if(type[0] == 'R'){
+					fs_type = FS_GET_T;
+				}else{
+					fs_type = FS_SET_T;
+				}
+			}else{
+				continue;
+			}
+			for (int i = 0; i < len; i++) {
 
+				inf_make_req(fs_type, offset+i, t_value, PAGESIZE, 0);
+				if (fs_type == FS_SET_T) {
+
+					write_cnt++;
+					real_w_cnt++;
+				} else if (fs_type == FS_GET_T) {
+					read_cnt++;
+					real_r_cnt++;
+				}
+
+				/*
+				   if (++cnt % 10240 == 0) {
+				   MA(&st);
+				   total_sec = st.adding.tv_sec + (float)st.adding.tv_usec/1000000;
+				   printf("\ntotal sec: %.2f\n", total_sec);
+				   printf("read throughput: %.2fMB/s\n", (float)read_cnt*8192/total_sec/1000/1000);
+				   printf("write throughput: %.2fMB/s\n\n", (float)write_cnt*8192/total_sec/1000/1000);
+				   MS(&st);
+				   }
+				 */
+			}
+	//		memset(command,0,sizeof(char) * 2);
+	//		memset(type,0,sizeof(char)*5);
+	//		fflush(stdout);
+			if(cnt%1000==0){
+				printf("second phase cnt:%d\n",cnt);
+			}
+		}
+
+		fseek(r_fp,0,SEEK_SET);
+	}
+	measure_adding(bt);
+	printf("%s bench complete!\n",argv[2]);
+	fclose(r_fp);
+#endif
+	total_sec = bt->adding.tv_sec + (float)bt->adding.tv_usec/1000000;
+	req_t_cnt = real_w_cnt + real_r_cnt;
 	printf("--------------- summary ------------------\n");
+	printf("-----------  bench run result  -----------\n");
+	printf("total_cnt = %d\n",req_t_cnt);
 	printf("\ntotal sec: %.2f\n", total_sec);
-	printf("read throughput: %.2fMB/s\n", (float)read_cnt*8192/total_sec/1000/1000);
-	printf("write throughput: %.2fMB/s\n\n", (float)write_cnt*8192/total_sec/1000/1000);
-
+	printf("read_cnt : %d write_cnt : %d\n",real_r_cnt, real_w_cnt);
+	printf("read throughput: %.2fMB/s\n", (float)real_r_cnt*8192/total_sec/1000/1000);
+	printf("write throughput: %.2fMB/s\n", (float)real_w_cnt*8192/total_sec/1000/1000);
+	printf("total_throughput: %.2fMB/s\n",(float)req_t_cnt*8192/total_sec/1000/1000);
+	/*
+	printf("CDF for bench trace!\n");
+	for(int i = 0; i < 1000000/TIMESLOT+1; i++){
+		c_number += trace_cdf[i];
+		if(trace_cdf[i]==0) continue;
+		printf("%d\t%ld\t%f\n",i * 10, trace_cdf[i], (float)c_number/real_r_cnt);
+		if(real_r_cnt == c_number)
+			break;
+	}
+	*/
+	free(bt);
+	free(st);
+	sleep(5);
 	inf_free();
 
 	return 0;

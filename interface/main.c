@@ -17,32 +17,41 @@ extern float TARGETRATIO;
 extern master *_master;
 extern bool force_write_start;
 extern lsmtree LSM;
+float dftl_cache_ratio;
 #ifdef Lsmtree
 int skiplist_hit;
 #endif
 
 int main(int argc,char* argv[]){
+	uint32_t cycle;
 	if(argc==3){
-		LOCALITY=atoi(argv[1]);
-		TARGETRATIO=atof(argv[2]);
+		dftl_cache_ratio=atof(argv[1]);
+		cycle=atoi(argv[2]);
 	}
 	else{
-		printf("If you want locality test Usage : [%s (LOCALITY(%%)) (RATIO)]\n",argv[0]);
-		printf("defalut locality=50%% RATIO=0.5\n");
-		LOCALITY=50;
-		TARGETRATIO=0.5;
+		printf("USAGE [%s (Cache(%%)) (cycle)]\n",argv[0]);
+		exit(-1);
 	}
 
 	inf_init();
 	bench_init();
 	char t_value[PAGESIZE];
 	memset(t_value,'x',PAGESIZE);
+	
+	printf("range : %lu\n", RANGE);
 
-	bench_add(RANDSET,0,RANGE,60L*G/PAGESIZE);
-//	bench_add(RANDSET,0,RANGE,RANGE/2);
+	bench_add(SEQSET, 0, RANGE, RANGE);
+	if(cycle>1){
+		bench_add(RANDSET, 0, RANGE, RANGE*(cycle-1));
+	}
+	bench_add(RANDRW, 0, RANGE, RANGE*2);
+	//bench_add(RANDRW, 0, RANGE, RANGE*2);
+
+//	bench_add(RANDRW,0,RANGE,RANGE*2);
+//	bench_add(RANDGET,0,RANGE,RANGE);
 //	bench_add(RANDGET,0,RANGE,RANGE);
 //	bench_add(RANDSET,0,RANGE/2,RANGE);
-	bench_add(SEQGET,0,RANGE,RANGE);
+//	bench_add(SEQGET,0,RANGE,RANGE);
 //	bench_add(RANDSET,0,RANGE,RANGE);
 //	bench_add(MIXED,0,RANGE,RANGE);
 //	bench_add(SEQLATENCY,0,RANGE,RANGE);

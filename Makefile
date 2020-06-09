@@ -9,14 +9,16 @@ PPWD=$(pwd)
 DEBUGFLAGS=\
 			-rdynamic\
 			-Wno-pointer-arith\
+			
 #	-DBUSE_DEBUG
 
 COMMONFLAGS=\
 			-Wno-write-strings\
 			-DLARGEFILE64_SOURCE\
 			-DSLC\
-#			-O2\
+			-O2\
 #			-DWRITESYNC\
+			 -fsanitize=address\
 
 COMMONFLAGS+=$(DEBUGFLAGS)\
 
@@ -102,9 +104,9 @@ LIBS +=\
 		-lpthread\
 		-lm\
 		-laio\
--ljemalloc\
+#-ljemalloc\
 
-all: range_driver
+all: driver
 
 DEBUG: debug_driver
 
