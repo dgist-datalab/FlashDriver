@@ -1,4 +1,4 @@
-export CC=gcc
+export CC=g++
 
 TARGET_INF=interface
 TARGET_LOWER=posix_memory
@@ -36,7 +36,7 @@ export CFLAGS_ALGO=\
 			 -fPIC\
 			 -Wall\
 			 -D$(TARGET_LOWER)\
-#		 -DDVALUE\
+		 -DDVALUE\
 
 export CFLAGS_LOWER=\
 		     -fPIC\
