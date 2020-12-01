@@ -834,6 +834,7 @@ KEYT *array_get_lpa_from_data(char *data, ppa_t ppa,bool isheader){
 void array_find_first_key(char *data, KEYT *des){
 	KEYT temp=__extract_start_key(data);
 	if(temp.key[0]!='m' && temp.key[0]!='d'){
+		temp=__extract_start_key(data);
 		abort();
 	}
 	des->key=temp.key;

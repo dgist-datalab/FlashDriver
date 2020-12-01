@@ -89,12 +89,12 @@ void temp_func(char* body, level *d, bool insert){
 
 extern uint32_t debugging_ppa;
 void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level* d){
-	//static int cnt=0;
-	//printf("cnt:%d\n", cnt++);
+	static int cnt=0;
+	printf("cnt:%d\n", cnt++);
 	bool debug=false;
-	//if(cnt==111785){
-	//	debug=true;
-	//}
+	if(cnt==6399){
+		debug=true;
+	}
 	cutter_start=true;
 	int o_num=0; int u_num=0;
 	char **u_data;
@@ -205,7 +205,7 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 				bc_set_validate(rpentry.info.ppa);
 			}
 		}
-
+/*
 		if(debug){
 			char buf[100], buf2[100], buf3[100];
 			key_interpreter(rpentry.key, buf);
@@ -216,7 +216,7 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 				printf("%d key:%s l-key:%s, h-key:%s\n", insert_cnt++, buf, buf2, buf3);
 			}
 		}
-
+*/
 		if(d->idx==LSM.LEVELN-1 && (rpentry.type==KVSEP && rpentry.info.ppa==TOMBSTONE)){
 			//printf("ignore key\n");
 		}

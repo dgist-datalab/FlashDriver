@@ -50,7 +50,7 @@ static inline KEYT __key_at(uint16_t idx, char *data, uint16_t *bitmap){
 	switch(res.type){
 		case KVSEP:
 			res.key.len=bitmap[idx+1]-bitmap[idx]-sizeof(ppa_t)-1;
-			res.key.key=&data[bitmap[idx]+sizeof(ppa_t)];
+			res.key.key=&data[bitmap[idx]+sizeof(ppa_t)+1];
 			break;
 		case KVUNSEP:
 			res.info.v_len=*(uint32_t*)&body[body_ptr];
