@@ -615,3 +615,16 @@ void write_buffer_free(KBM *kbm){
 	free(kbm);
 }
 
+void write_buffre_force_flush_anyway(KBM *kbm){
+	snode_bucket *bc;
+	if(kbm->data_bucket_list->size){
+		bc=(snode_bucket*)kbm->data_bucket_list->head->data();
+		write_buffer_force_flush(kbm, bc->tid, NULL);
+	}
+
+	if(kbm->meta_bucket_list->size){
+		bc=(snode_bucket*)kbm->meta_bucket_list->head->data();
+		write_buffer_force_flush(kbm, bc->tid, NULL);
+	}
+	return;
+}

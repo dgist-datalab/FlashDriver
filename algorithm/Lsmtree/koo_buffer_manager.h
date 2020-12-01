@@ -40,6 +40,7 @@ bool write_buffer_insert_KV(KBM *, uint32_t tid, snode *, bool isdelete, uint32_
 //snode *write_buffer_get(KBM* ,KEYT key);//KEYT in ../../include/settings.h, compare by KEYCMP()
 bool write_buffer_force_flush(KBM *, uint32_t tid, uint32_t *tid_list);
 void write_buffer_free(KBM*);
+void write_buffre_force_flush_anyway(KBM *);
 
 static inline uint32_t has_tid(list *li, uint32_t tid){
 	list_node *n;
