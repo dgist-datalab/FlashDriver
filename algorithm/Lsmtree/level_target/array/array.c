@@ -29,6 +29,7 @@ level_ops a_ops={
 	.move_heap=def_move_heap,
 	.chk_overlap=array_chk_overlap,
 	.chk_overlap_run=array_chk_overlap_run,
+	.level_order_chk=array_level_order_chk,
 	.range_find=array_range_find,
 	.range_find_compaction=array_range_find_compaction,
 	.unmatch_find=array_unmatch_find,
@@ -832,12 +833,18 @@ KEYT *array_get_lpa_from_data(char *data, ppa_t ppa,bool isheader){
 */
 void array_find_first_key(char *data, KEYT *des){
 	KEYT temp=__extract_start_key(data);
+	if(temp.key[0]!='m' && temp.key[0]!='d'){
+		abort();
+	}
 	des->key=temp.key;
 	des->len=temp.len;
 }
 
 void array_find_last_key(char *data, KEYT *des){
 	KEYT temp=__extract_end_key(data);
+	if(temp.key[0]!='m' && temp.key[0]!='d'){
+		abort();
+	}
 	des->key=temp.key;
 	des->len=temp.len;
 }
@@ -918,7 +925,7 @@ uint32_t array_get_numbers_run(level *lev){
 }
 
 void array_check_order(level *lev){
-	if(lev->idx<LSM.LEVELCACHING || lev->n_num==0) return;
+	if(lev->n_num==0) return;
 	run_t *bef=array_get_run_idx(lev,0);
 	for(int i=1; i<lev->n_num; i++){
 		run_t *now=array_get_run_idx(lev,i);
@@ -950,4 +957,8 @@ void array_lev_copy(level *des, level *src){
 	for(int i=0; i<src->n_num; i++){
 		array_run_cpy_to(&sb->arrs[i],&db->arrs[i],src->idx);
 	}
+}
+
+bool array_level_order_chk(level* lev){
+	return false;
 }

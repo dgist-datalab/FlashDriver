@@ -60,30 +60,30 @@ char *array_skip_cvt2_data(skiplist *mem){
 void temp_func(char* body, level *d, bool insert){
 	int idx;
 	uint16_t *bitmap=(uint16_t*)body;
-	p_entry pent;
+	p_entry pent, prev_pent;
 	for_each_header_start(idx,pent,bitmap,body)
-	/*	if(*ppa_ptr/NPCINPAGE==512141){
-			char buf[100];
-			key_interpreter(key, buf);
-			printf("KEY-(%s), ppa:%u ",buf,*ppa_ptr);
-			if(key.len==0){
-				printf("error!\n");
+		if(idx==1) prev_pent=pent;
+		else{
+			if(KEYCMP(prev_pent.key, pent.key) >=0 ){
+				if(insert){
+					printf("insert order error!!\n");
+				}
+				else{
+					printf("cutter order error!!\n");
+				}
 				abort();
 			}
-			if(insert)
-				printf("insert into %d\n",d->idx);
-			else{
-				printf("cutter %d\n",d->idx);
-			}
-		}*/
+			prev_pent=pent;
+		}
 
+	/*
 		if(KEYCONSTCOMP(pent.key, "m0000000000004134313")==0){
 			if(insert)
 				printf("[%.*s] insert into %d\n",KEYFORMAT(pent.key), d->idx);
 			else{
 				printf("[%.*s] cutter %d\n",KEYFORMAT(pent.key), d->idx);
 			}	
-		}
+		}*/
 	for_each_header_end
 }
 
@@ -91,6 +91,10 @@ extern uint32_t debugging_ppa;
 void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level* d){
 	//static int cnt=0;
 	//printf("cnt:%d\n", cnt++);
+	bool debug=false;
+	//if(cnt==111785){
+	//	debug=true;
+	//}
 	cutter_start=true;
 	int o_num=0; int u_num=0;
 	char **u_data;
@@ -101,7 +105,7 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 		u_num=1;
 		u_data=(char**)malloc(sizeof(char*)*u_num);
 		u_data[0]=array_skip_cvt2_data(mem);
-		//temp_func(u_data[0],d,true);
+		temp_func(u_data[0],d,true);
 	}
 	else{
 		for(int i=0; s[i]!=NULL; i++) u_num++;
@@ -109,7 +113,10 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 		for(int i=0; i<u_num; i++) {
 			u_data[i]=data_from_run(s[i]);
 			if(!u_data[i]) abort();
-			//temp_func(u_data[i],d,true);
+			temp_func(u_data[i],d,true);
+			if((i>345 && i<355) && debug){
+				array_header_print(u_data[i]);
+			}
 		}
 	}
 
@@ -118,7 +125,7 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 	for(int i=0; o[i]!=NULL; i++){ 
 		o_data[i]=data_from_run(o[i]);
 		if(!o_data[i]) abort();
-	//	temp_func(o_data[i],d,true);
+		temp_func(o_data[i],d,true);
 	}
 
 
@@ -199,7 +206,16 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 			}
 		}
 
-
+		if(debug){
+			char buf[100], buf2[100], buf3[100];
+			key_interpreter(rpentry.key, buf);
+			key_interpreter(lpentry.key, buf2);
+			key_interpreter(hpentry.key, buf3);
+			static int insert_cnt=0;
+			if(insert_cnt++>1869300){
+				printf("%d key:%s l-key:%s, h-key:%s\n", insert_cnt++, buf, buf2, buf3);
+			}
+		}
 
 		if(d->idx==LSM.LEVELN-1 && (rpentry.type==KVSEP && rpentry.info.ppa==TOMBSTONE)){
 			//printf("ignore key\n");
@@ -277,7 +293,7 @@ run_t *array_pipe_cutter(struct skiplist* mem, struct level* d, KEYT* _start, KE
 		pbody_clear(rp);
 		return NULL;
 	}
-//	temp_func(data,d,false);
+	temp_func(data,d,false);
 
 	return array_pipe_make_run(data,d->idx);
 }
