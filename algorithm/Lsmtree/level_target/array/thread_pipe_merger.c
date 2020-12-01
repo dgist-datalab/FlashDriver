@@ -382,6 +382,8 @@ void array_thread_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct
 		//array_header_print(o_data[i]);
 
 		//temp_func(o_data[i], d, true);
+	//	printf("lower %d\n", i);
+	//	array_header_print(o_data[i]);
 		if(!o_data[i]) abort();
 	}
 
@@ -421,6 +423,9 @@ make_params:
 		if(end_boundary==-1){ //-1==no data or before data
 			real_bound=prev_consume_num+end_boundary;
 			if(splited_data){
+				if(tp_num>=(u_num+2)){
+					printf("break!!\n");
+				}
 				switch(__header_overlap_chk(u_data[i],splited_data)){
 					case 1://no overlap: [splited_data] [u_data[i]]
 						tpp[tp_num]=init_dummy_thread_params(1, splited_data, d, tp_num);
@@ -460,6 +465,7 @@ make_params:
 		}
 
 		if(end_boundary!=-1 && end_boundary==next_boundary){
+			//array_header_print(o_data[prev_consume_num+end_boundary]);
 			splited_data=__split_data(o_data[prev_consume_num+end_boundary], now_end_key, next_start_key, false);
 			if(splited_data){
 				splited_data_set.push_back(splited_data);

@@ -546,6 +546,10 @@ uint32_t transaction_commit(request *const req){
 void *insert_KP_to_skip(map_entry map){
 	KEYT temp_key;
 	kvssd_cpy_key(&temp_key, &map.key);
+	if(map.key.key[0]!='m' && map.key.key[0]!='d'){
+		printf("invalid key %s:%d\n", __FILE__, __LINE__);
+		abort();
+	}
 
 	bench_custom_start(write_opt_time2, 6);
 	if(map.type==KVSEP){
@@ -690,6 +694,7 @@ uint32_t __transaction_get(request *const req){
 	if(req->magic==1){
 		goto search_lsm;
 	}
+
 /*
 	if(key_const_compare(req->key, 'd', 3707, 262149, NULL)){
 		printf("target set now reading\n");

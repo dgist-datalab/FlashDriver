@@ -594,7 +594,7 @@ snode *skiplist_insert(skiplist *list,KEYT key,value_set* value, bool valid){
 		update[i]=x;
 	}
 	x=x->list[1];
-	if(value!=NULL){
+	if(value!=NULL && key.key[0]=='d'){
 		value->length=(value->length/PIECE)+(value->length%PIECE?1:0);
 	}
 #if defined(KVSSD)
@@ -648,7 +648,7 @@ snode *skiplist_insert(skiplist *list,KEYT key,value_set* value, bool valid){
 		x->value.u_value=value;
 
 #ifdef KVSSD
-		list->all_length+=KEYLEN(key);
+		list->all_length+=KEYLEN(key)+1;
 		if(key.key[0]=='m'){
 			list->all_length+=x->value.u_value->length;
 		}
@@ -1101,8 +1101,10 @@ snode *skiplist_insert_data_existIgnore(skiplist *list, KEYT key, uint32_t data_
 				memcpy(x->value.u_value->value, data, data_len);	
 			}
 			else if(!isvalid){
+				list->all_length-=x->value.u_value->length;
 				inf_free_valueset(x->value.u_value, FS_MALLOC_W);
 				x->value.u_value=NULL;
+				x->ppa=TOMBSTONE;
 			}
 		}
 		
@@ -1148,10 +1150,11 @@ snode *skiplist_insert_data_existIgnore(skiplist *list, KEYT key, uint32_t data_
 			x->ppa=UINT32_MAX;
 		}
 		else{
+			x->value.u_value=NULL;
 			x->ppa=ppa;
 		}
 #ifdef KVSSD
-		list->all_length+=KEYLEN(key)+data_len;
+		list->all_length+=KEYLEN(key)+data_len+1;
 #endif
 
 #ifdef Lsmtree

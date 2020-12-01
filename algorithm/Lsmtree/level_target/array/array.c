@@ -891,15 +891,25 @@ uint32_t array_get_level_mem_size(level *lev){
 void array_print_level_summary(){
 	for(int i=0; i<LSM.LEVELN; i++){
 		if(LSM.disk[i]->n_num==0){
-			printf("[%d - %s ] n_num:%d m_num:%d\n",i+1,i<LSM.LEVELCACHING?"C":"NC",LSM.disk[i]->n_num,LSM.disk[i]->m_num);
+			printf("[%d - %s ] n_num:%d m_num:%d",i+1,i<LSM.LEVELCACHING?"C":"NC",LSM.disk[i]->n_num,LSM.disk[i]->m_num);
 		}
 		else {
 #ifdef BLOOM
-			printf("[%d - %s (%.*s ~ %.*s)] n_num:%d m_num:%d filter:%p\n",i+1,i<LSM.LEVELCACHING?"C":"NC",KEYFORMAT(LSM.disk[i]->start),KEYFORMAT(LSM.disk[i]->end),LSM.disk[i]->n_num,LSM.disk[i]->m_num,LSM.disk[i]->filter);
+			printf("[%d - %s (%.*s ~ %.*s)] n_num:%d m_num:%d filter:%p",i+1,i<LSM.LEVELCACHING?"C":"NC",KEYFORMAT(LSM.disk[i]->start),KEYFORMAT(LSM.disk[i]->end),LSM.disk[i]->n_num,LSM.disk[i]->m_num,LSM.disk[i]->filter);
 #else
-			printf("[%d - %s (%.*s ~ %.*s)] n_num:%d m_num:%d %.*s ~ %.*s\n",i+1,i<LSM.LEVELCACHING?"C":"NC",KEYFORMAT(LSM.disk[i]->start),KEYFORMAT(LSM.disk[i]->end),LSM.disk[i]->n_num,LSM.disk[i]->m_num,KEYFORMAT(LSM.disk[i]->start),KEYFORMAT(LSM.disk[i]->end));
+			printf("[%d - %s (%.*s ~ %.*s)] n_num:%d m_num:%d %.*s ~ %.*s",i+1,i<LSM.LEVELCACHING?"C":"NC",KEYFORMAT(LSM.disk[i]->start),KEYFORMAT(LSM.disk[i]->end),LSM.disk[i]->n_num,LSM.disk[i]->m_num,KEYFORMAT(LSM.disk[i]->start),KEYFORMAT(LSM.disk[i]->end));
 #endif
 		}
+
+#ifdef KOO
+		if(LSM.disk[i]->n_num){
+			char buf1[100], buf2[100];
+			key_interpreter(LSM.disk[i]->start,buf1);
+			key_interpreter(LSM.disk[i]->end,buf2);
+			printf(" %s~%s",buf1, buf2);
+		}
+#endif
+		printf("\n");
 	}	
 }
 

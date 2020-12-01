@@ -123,7 +123,10 @@ htable *array_mem_cvt2table(skiplist*mem,run_t* input)
 	uint32_t idx=1;
 	memset(bitmap,-1,KEYBITMAP/sizeof(uint16_t));
 	uint16_t data_start=KEYBITMAP;
+	uint16_t added_length=0;
+	char *now_ptr;
 	bitmap[0]=mem->size;
+	bool header_print_flag=false;
 	for_each_sk(mem,temp){
 		//printf("idx:%d data_start:%d key_len:%d\n",idx,data_start,temp->key.len);
 		if(input && idx==1){
@@ -132,35 +135,48 @@ htable *array_mem_cvt2table(skiplist*mem,run_t* input)
 		else if(input && idx==mem->size){
 			kvssd_cpy_key(&input->end,&temp->key);
 		}
+
+		added_length=0;
+		now_ptr=&ptr[data_start];
+
+		if(temp->key.key[0]=='d'){
+			header_print_flag=true;
+		}
 #ifdef META_UNSEP
 		if(temp->ppa!=TOMBSTONE && temp->key.key[0]=='m'){
-			ptr[data_start++]=KVUNSEP;
-			memcpy(&ptr[data_start], &temp->value.u_value->length, sizeof(uint32_t));
-			data_start+=sizeof(uint32_t);
-			memcpy(&ptr[data_start], temp->value.u_value->value, temp->value.u_value->length);
-			data_start+=temp->value.u_value->length;
+			now_ptr[added_length++]=KVUNSEP;
+			memcpy(&now_ptr[added_length], &temp->value.u_value->length, sizeof(uint32_t));
+			added_length+=sizeof(uint32_t);
+			memcpy(&now_ptr[added_length], temp->value.u_value->value, temp->value.u_value->length);
+			added_length+=temp->value.u_value->length;
 		}
 		else
 #endif
 		{
-#ifdef META_UNSEP
-			ptr[data_start++]=KVSEP;
-#endif
-			memcpy(&ptr[data_start],&temp->ppa,sizeof(temp->ppa));
-			data_start+=sizeof(temp->ppa);
+			now_ptr[added_length++]=KVSEP;
+			memcpy(&now_ptr[added_length],&temp->ppa,sizeof(temp->ppa));
+			added_length+=sizeof(temp->ppa);
 		}
-		memcpy(&ptr[data_start],temp->key.key,temp->key.len);
+	
+		if(temp->key.len+added_length+data_start>PAGESIZE){
+			printf("overflow!! %s:%d\n", __FILE__, __LINE__);
+			abort();
+		}
+		memcpy(&now_ptr[added_length],temp->key.key,temp->key.len);
+		added_length+=temp->key.len;
 
 		bitmap[idx]=data_start;
 #ifdef BLOOM
 		if(filter)bf_set(filter,temp->key);
 #endif
-		data_start+=temp->key.len+sizeof(temp->ppa);
-
+		data_start+=added_length;
 		//free(temp->key.key);
 		idx++;
 	}
 	bitmap[idx]=data_start;
+	if(header_print_flag){
+	//	array_header_print(ptr);
+	}
 #else
 	not implemented
 #endif
@@ -222,7 +238,7 @@ void array_header_print(char *data){
 #ifdef DVALUE
 	#ifdef KOO
 		key_interpreter(pent.key, buf);
-		fprintf(stderr,"[%d] %d key:%s ppa:%u\n",pent.type,idx,buf, *ppa);
+		fprintf(stderr,"[%d] %d key:%s ppa:%u\n",pent.type,idx,buf, pent.info.ppa);
 	#else
 		fprintf(stderr,"[type-%d %d:%d] key(%p):%.*s(%d),%u\n",pent.type, idx,bitmap[idx],&data[bitmap[idx]],pent.key.len, pent.key.key, pent.len, pent.info.ppa);
 	#endif

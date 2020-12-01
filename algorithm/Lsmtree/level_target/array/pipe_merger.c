@@ -23,15 +23,37 @@ char *array_skip_cvt2_data(skiplist *mem){
 	uint32_t idx=1;
 	uint16_t data_start=KEYBITMAP;
 	snode *temp;
+	char *now_ptr;
+	uint16_t added_length=0;
+	bitmap[0]=mem->size;
 	for_each_sk(mem,temp){
-		memcpy(&res[data_start],&temp->ppa,sizeof(temp->ppa));
-		memcpy(&res[data_start+sizeof(temp->ppa)],temp->key.key,temp->key.len);
-		bitmap[idx]=data_start;
+		added_length=0;
+		now_ptr=&res[data_start];
+#ifdef META_UNSEP
+		if(temp->ppa!=TOMBSTONE && temp->key.key[0]=='m'){
+			now_ptr[added_length++]=KVUNSEP;
+			memcpy(&now_ptr[added_length], &temp->value.u_value->length, sizeof(uint32_t));
+			added_length+=sizeof(uint32_t);
+			memcpy(&now_ptr[added_length], temp->value.u_value->value, temp->value.u_value->length);
+			added_length+=temp->value.u_value->length;
+		}
+		else
+#endif
+		{
+			now_ptr[added_length++]=KVSEP;
+			memcpy(&now_ptr[added_length],&temp->ppa,sizeof(temp->ppa));
+			added_length+=sizeof(temp->ppa);
+		}
+		memcpy(&now_ptr[added_length],temp->key.key,temp->key.len);
+		added_length+=temp->key.len;
 
-		data_start+=temp->key.len+sizeof(temp->ppa);
+		bitmap[idx]=data_start;
+		data_start+=added_length;
+		if(added_length==156){
+			abort();
+		}
 		idx++;
 	}
-	bitmap[0]=idx-1;
 	bitmap[idx]=data_start;
 	return res;
 }
@@ -67,6 +89,8 @@ void temp_func(char* body, level *d, bool insert){
 
 extern uint32_t debugging_ppa;
 void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level* d){
+	//static int cnt=0;
+	//printf("cnt:%d\n", cnt++);
 	cutter_start=true;
 	int o_num=0; int u_num=0;
 	char **u_data;
@@ -175,18 +199,20 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 			}
 		}
 
-		if(next_pop<0) lpentry=pbody_get_next_pentry(lp);
-		else if(next_pop>0) hpentry=pbody_get_next_pentry(hp);
-		else{
-			lpentry=pbody_get_next_pentry(lp);
-			hpentry=pbody_get_next_pentry(hp);
-		}
+
 
 		if(d->idx==LSM.LEVELN-1 && (rpentry.type==KVSEP && rpentry.info.ppa==TOMBSTONE)){
 			//printf("ignore key\n");
 		}
 		else if((pbody_insert_new_pentry(rp,rpentry,false))){
 			result_cnt++;
+		}
+
+		if(next_pop<0) lpentry=pbody_get_next_pentry(lp);
+		else if(next_pop>0) hpentry=pbody_get_next_pentry(hp);
+		else{
+			lpentry=pbody_get_next_pentry(lp);
+			hpentry=pbody_get_next_pentry(hp);
 		}
 	}
 	if(d->idx==LSM.LEVELN-1 && !bc.full_caching){
@@ -215,12 +241,15 @@ run_t *array_pipe_make_run(char *data,uint32_t level_idx)
 	uint16_t *body=(uint16_t*)data;
 	uint32_t num=body[0];
 
+	array_find_first_key(data, &start);
+	array_find_last_key(data, &end);
+/*
 	start.len=body[2]-body[1]-sizeof(ppa_t);
 	start.key=&data[body[1]+sizeof(ppa_t)];
 
 	end.len=body[num+1]-body[num]-sizeof(ppa_t);
 	end.key=&data[body[num]+sizeof(ppa_t)];
-	
+*/	
 	run_t *r=array_make_run(start,end,-1);
 
 	if(level_idx<LSM.LEVELCACHING){
@@ -248,7 +277,6 @@ run_t *array_pipe_cutter(struct skiplist* mem, struct level* d, KEYT* _start, KE
 		pbody_clear(rp);
 		return NULL;
 	}
-	
 //	temp_func(data,d,false);
 
 	return array_pipe_make_run(data,d->idx);

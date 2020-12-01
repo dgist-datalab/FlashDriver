@@ -32,6 +32,7 @@
 
 #define REQS_OFF (SEQ_OFF + SEQ_SIZE)
 
+#define METALEN 152
 
 enum lightfs_req_type {
     LIGHTFS_META_GET = 0,

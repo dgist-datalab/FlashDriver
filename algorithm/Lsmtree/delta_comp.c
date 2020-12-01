@@ -157,7 +157,6 @@ uint32_t delta_compression_comp(char *src, char *des){
 		free(now->footer);
 	}
 
-
 	if(cm.now_body_idx>8192){
 		printf("over data file!!\n");
 		abort();

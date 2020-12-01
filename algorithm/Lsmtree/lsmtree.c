@@ -1006,7 +1006,9 @@ uint32_t __lsm_get(request *const req){
 	int *temp_data;
 	rparams *rp;
 	//printf("%.*s\n", KEYFORMAT(req->key));
-
+	if(req->key.key[0]=='d'){
+		printf("break!\n");
+	}
 	if(req->params==NULL){
 		if(!ISTRANSACTION(LSM.setup_values)){
 			/*memtable*/

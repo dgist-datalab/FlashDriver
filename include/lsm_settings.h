@@ -30,7 +30,7 @@
 #define DEFKEYINHEADER ((PAGESIZE-KEYBITMAP)/DEFKEYLENGTH)
 //#define ONESEGMENT (DEFKEYINHEADER*DEFVALUESIZE)
 
-#define KEYLEN(a) (a.len+sizeof(ppa_t))
+#define KEYLEN(a) (a.len+sizeof(ppa_t)+1)
 #define READCACHE
 #define RANGEGETNUM 2
 //#define USINGSLAB

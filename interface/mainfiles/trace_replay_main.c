@@ -27,7 +27,6 @@ static string convertToString(char *a ,int size){
     } 
     return s; 
 }
-
 static inline void map_crc_insert(KEYT key, uint32_t crc){
 	string a=convertToString(key.key, key.len);
 	map<string, uint32_t>::iterator it=chk_data.find(a);
@@ -241,7 +240,7 @@ int main(int argc,char* argv[]){
 					treq->value=inf_get_valueset(NULL, FS_MALLOC_W, LPAGESIZE);
 				}
 				else{
-					treq->value=inf_get_valueset(NULL, FS_MALLOC_W, 512);			
+					treq->value=inf_get_valueset(NULL, FS_MALLOC_W, METALEN);			
 				}
 				memcpy(treq->value->value, &treq->crc_value, sizeof(uint32_t));
 				break;
@@ -308,7 +307,7 @@ bool trace_end_req(request *const req){
 			break;
 		case FS_MGET_T:
 		case FS_GET_T:
-			map_crc_check(req->key, *(uint32_t*)req->value->value);
+			//map_crc_check(req->key, *(uint32_t*)req->value->value);
 			bench_reap_data(req, mp.li);
 			inf_free_valueset(req->value,FS_MALLOC_R);
 			if(req->key.len){
@@ -316,22 +315,21 @@ bool trace_end_req(request *const req){
 			}
 			break;
 		case FS_SET_T:
-			map_crc_insert(req->temp_key, req->crc_value);
+			//map_crc_insert(req->temp_key, req->crc_value);
 			kvssd_free_key_content(&req->temp_key);
 			bench_reap_data(req, mp.li);
 			if(req->value) inf_free_valueset(req->value, FS_MALLOC_W);
 			break;
 		case FS_DELETE_T:
-			map_crc_insert(req->temp_key, 0);
+			//map_crc_insert(req->temp_key, 0);
 			kvssd_free_key_content(&req->temp_key);
-			//bench_reap_data(req, mp.li);
 			break;
 		case FS_RMW_T:
 			return true;
 		case FS_TRANS_COMMIT:
 			break;
 		case FS_RANGEDEL_T:
-			map_crc_range_delete(req);
+			//map_crc_range_delete(req);
 			kvssd_free_key_content(&req->temp_key);
 			break;
 		case FS_RANGEGET_T:

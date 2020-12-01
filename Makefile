@@ -23,7 +23,7 @@ DEBUGFLAGS=\
 			-rdynamic\
 			-Wno-pointer-arith\
 			-g\
-#-fsanitize=address\
+-fsanitize=address\
 #	-DBUSE_DEBUG
 
 export COMMONFLAGS=\
@@ -37,11 +37,11 @@ export COMMONFLAGS=\
 			-Wno-unused-but-set-variable\
 			-DKVSSD\
 			-DKOO\
-			-O3 -march=native -mtune=native -flto=20 \
 			-DCHECKINGTIME\
-#			-DCHECKINGDATA\
+			-DCHECKINGDATA\
 #			-DDEBUG\
 #			-march=armv8-a+crypto\
+			-O3 -march=native -mtune=native -flto=20 \
 
 COMMONFLAGS+=$(DEBUGFLAGS)\
 

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "array.h"
 #include "pipe.h"
+#include "../../../../interface/koo_hg_inf.h"
 /*
 static inline uint32_t __extract_ppa(KEYT key){
 	return *(uint32_t*)(key.key-sizeof(ppa_t));
@@ -23,11 +24,13 @@ static inline p_entry  __extract_p_entry(uint16_t idx, char *data, uint16_t* bit
 		case KVSEP:
 			res.info.ppa=*(uint32_t*)&body[body_ptr];
 			res.key.len=bitmap[idx+1]-bitmap[idx]-sizeof(ppa_t)-1;
-			res.key.key=&data[bitmap[idx]+sizeof(ppa_t)];
+			res.key.key=&data[bitmap[idx]+sizeof(ppa_t)+1];
 			break;
 		case KVUNSEP:
 			res.info.v_len=*(uint32_t*)&body[body_ptr];
-			body_ptr+=res.info.v_len+sizeof(uint32_t);
+			body_ptr+=sizeof(uint32_t);
+			res.data=&body[body_ptr];
+			body_ptr+=res.info.v_len;
 			res.key.len=bitmap[idx+1]-bitmap[idx]-sizeof(uint32_t)-1-res.info.v_len;
 			res.key.key=&body[body_ptr];
 			break;
@@ -80,8 +83,7 @@ static inline int __find_idx_boundary(char *data, KEYT lpa, KEYT lpa2){
 	KEYT target;
 	while(s<=e){
 		mid=(s+e)/2;
-		target.key=&body[bitmap[mid]+sizeof(uint32_t)];
-		target.len=bitmap[mid+1]-bitmap[mid]-sizeof(uint32_t);
+		target=__key_at(mid, data, bitmap);
 		res=KEYCMP(target,lpa);
 		if(res==0){
 			return mid;
@@ -111,6 +113,12 @@ static inline char *__split_data(char *data, KEYT key, KEYT key2, bool debug){
 	if(boundary==0){
 		return NULL;
 	}
+
+//	char buf1[100], buf2[100];
+//	key_interpreter(key, buf1);
+//	key_interpreter(key2, buf2);
+//
+//	printf("split called!!! k1:%s k2:%s\n", buf1, buf2);
 	char *res=(char *)calloc(PAGESIZE,1);
 
 	char *ptr=res;
@@ -124,7 +132,7 @@ static inline char *__split_data(char *data, KEYT key, KEYT key2, bool debug){
 	uint32_t added_length;
 	char *target;
 	for(uint16_t i=boundary+1; i<=org_bitmap[0]; i++){
-		pent=__extract_p_entry(i, data, bitmap);
+		pent=__extract_p_entry(i, data, org_bitmap);
 		added_length=0;
 		target=&ptr[data_start];
 		switch(pent.type){
@@ -140,7 +148,7 @@ static inline char *__split_data(char *data, KEYT key, KEYT key2, bool debug){
 				memcpy(&target[added_length],&pent.info.v_len,sizeof(uint32_t));
 				added_length+=sizeof(uint32_t);
 				memcpy(&target[added_length],pent.data, pent.info.v_len);
-				added_length=pent.info.v_len;
+				added_length+=pent.info.v_len;
 				memcpy(&target[added_length],pent.key.key,pent.key.len);
 				added_length+=pent.key.len;
 				break;

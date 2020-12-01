@@ -7,6 +7,7 @@
 #include "lsmtree_lru_manager.h"
 #include "level.h"
 #include "../../bench/bench.h"
+#include "../../interface/koo_hg_inf.h"
 #include <pthread.h>
 extern volatile int epc_check;
 extern compM compactor;
@@ -64,11 +65,27 @@ uint32_t level_change(level *from ,level *to,level *target, rwlock *lock){
 }
 
 bool level_sequential(level *from, level *to,level *des, run_t *entry,leveling_node *lnode){
-	
+	static int cnt=0;
 	KEYT start=from?from->start:lnode->start;
 	KEYT end=from?from->end:lnode->end;
-	if(to->n_num>0 && LSM.lop->chk_overlap(to,start,end)) return false;
+	//printf("seq!!! %d\n",cnt++);
+	//if(cnt==4){
 
+	//}
+	if(to->n_num>0 && LSM.lop->chk_overlap(to,start,end)) return false;
+/*
+		printf("break!\n");
+		char buf[100];
+		key_interpreter(start,buf);
+		printf("upper start:%s\n", buf);
+		key_interpreter(end,buf);
+		printf("upper end:%s\n", buf);
+
+		key_interpreter(to->start,buf);
+		printf("lower start:%s\n", buf);
+		key_interpreter(to->end,buf);
+		printf("lower start:%s\n", buf);
+*/
 	bool target_processed=false;
 	if(KEYCMP(to->start,end)<0){
 		target_processed=true;
@@ -339,6 +356,6 @@ skip:
 	compaction_sub_post();
 	if(!lnode) skiplist_free(skip);
 	else if(lnode && !lnode->mem) skiplist_free(skip);
-	//LSM.lop->print_level_summary();
+//	LSM.lop->print_level_summary();
 	return 1;
 }

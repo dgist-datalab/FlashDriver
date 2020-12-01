@@ -429,7 +429,7 @@ static inline vec_request *get_vreq2creq(cheeze_req *creq, int tag_id){
 					temp->value=inf_get_valueset(translation_buffer(req_buf, &idx, LPAGESIZE, limit), FS_MALLOC_W, LPAGESIZE);
 				}
 				else{
-					temp->value=inf_get_valueset(translation_buffer(req_buf, &idx, LPAGESIZE, limit), FS_MALLOC_W, 512);			
+					temp->value=inf_get_valueset(translation_buffer(req_buf, &idx, LPAGESIZE, limit), FS_MALLOC_W, METALEN);			
 				}
 
 #ifdef CHECKINGDATA

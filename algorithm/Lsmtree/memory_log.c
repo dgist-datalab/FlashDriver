@@ -50,6 +50,7 @@ static inline memory_node* setup_mn(memory_log *ml){
 		}
 		printf("temp skiplist_size :%u\n", _tm.commit_KP->size);*/
 	}
+	//printf("tag num: %d\n", ml->tagQ->tagQ->size());
 	uint32_t tag=tag_manager_get_tag(ml->tagQ);
 	if(isempty){
 		//fdriver_lock(&indexer_lock);

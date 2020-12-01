@@ -786,8 +786,8 @@ bool inf_iter_req_apps(char type, char *prefix, uint8_t key_len,char **value, in
 value_set *inf_get_valueset(PTR in_v, int type, uint32_t length){
 	value_set *res=(value_set*)malloc(sizeof(value_set));
 #ifdef DVALUE
-	#ifdef KOOFS
-		length=length==4096?8:length;
+	#ifdef KOO
+	//	length=length;
 	#else
 		length=(length/PIECE+(length%PIECE?1:0))*PIECE;
 	#endif
