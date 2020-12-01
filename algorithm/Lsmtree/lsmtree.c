@@ -40,7 +40,7 @@ struct algorithm algo_lsm={
 	.partial_update=lsm_partial_update,
 	.range_query=lsm_range_get,
 	.key_range_query=lsm_range_get,
-	.defragmentation=lsm_defragmentation,
+	.defragmentation=NULL,//lsm_defragmentation,
 	.wait_bg_jobs=lsm_wait_bg_jobs,
 	.trans_begin=transaction_start,
 	.trans_commit=transaction_commit
@@ -402,16 +402,9 @@ void* lsm_end_req(algo_req* const req){
 				if(((int*)req_temp_params)[2]==-1){
 					printf("here!\n");
 				}
-#ifdef MULTILEVELREAD
-				parents->type_ftl=((mreq_params*)req_temp_params)->overlap_cnt;
-#else
 				parents->type_ftl=((int*)req_temp_params)[2];
-#endif
 			}
 			parents->type_lower=0;//req->type_lower;
-#ifdef MULTILEVELREAD
-			free(((mreq_params*)req_temp_params)->target_ppas);
-#endif
 			free(rp);
 
 			break;
@@ -669,7 +662,7 @@ void dummy_htable_read(uint32_t pbn,request *req){
 #endif
 }
 
-uint8_t lsm_find_run(KEYT key, run_t ** entry, run_t *up_entry, keyset **found, uint32_t *found_ppa, int *level,int *run, rwlock **rw_lock){
+uint8_t lsm_find_run(KEYT key, run_t ** entry, run_t *up_entry, map_entry *found, uint32_t *found_ppa, int *level,int *run, rwlock **rw_lock){
 	run_t *entries=NULL;
 #ifdef PARTITION
 	rwlock *up_entry_lock=NULL;
@@ -717,8 +710,8 @@ uint8_t lsm_find_run(KEYT key, run_t ** entry, run_t *up_entry, keyset **found, 
 		}
 
 		if(i<LSM.LEVELCACHING){
-			keyset *find=LSM.lop->find_keyset(entries->level_caching_data,key);
-			if(find){
+			map_entry find=LSM.lop->find_map_entry(entries->level_caching_data,key);
+			if(find.type!=INVALIDENT){
 				*found=find;
 				(*found_ppa)=UINT32_MAX;
 				if(level) *level=i;
@@ -741,7 +734,8 @@ uint8_t lsm_find_run(KEYT key, run_t ** entry, run_t *up_entry, keyset **found, 
 #if (defined(COMPRESSEDCACHE)&&COMPRESSEDCACHE==DELTACOMP)
 			ppa_t compressed_result=lsm_lru_find_cache(LSM.llru, &entries[0], key);
 			if(compressed_result!=UINT32_MAX){
-				(*found)=NULL;
+				found->type=INVALIDENT;
+//				(*found)=NULL;
 				(*found_ppa)=compressed_result;
 				rwlock_read_unlock(level_rw_lock);
 				if(level)*level=i;
@@ -759,9 +753,9 @@ uint8_t lsm_find_run(KEYT key, run_t ** entry, run_t *up_entry, keyset **found, 
 			if(cache_data){
 //				printf("%s~%s key:%s find!\n", buf, buf2, buf3);
 				LMI.lru_hit_cnt++;
-				keyset *find=LSM.lop->find_keyset(cache_data, key);
+				map_entry find=LSM.lop->find_map_entry(cache_data, key);
 				lsm_lru_pick_release(LSM.llru, &entries[0]);
-				if(find){
+				if(find.type!=INVALIDENT){
 					*found=find;
 					*found_ppa=UINT32_MAX;
 					if(level) *level=i;
@@ -797,7 +791,7 @@ uint8_t lsm_find_run(KEYT key, run_t ** entry, run_t *up_entry, keyset **found, 
 extern char *debug_koo_key;
 extern bool debug_target;
 extern uint32_t debugging_ppa;
-int __lsm_get_sub(request *req,run_t *entry, keyset *table,skiplist *list, int idx){
+int __lsm_get_sub(request *req,run_t *entry, char *table,skiplist *list, int idx){
 	int res=0;
 	if(!entry && !table && !list && idx != LSM.LEVELN-1){
 		return 0;
@@ -806,7 +800,7 @@ int __lsm_get_sub(request *req,run_t *entry, keyset *table,skiplist *list, int i
 	uint32_t ppa;
 	algo_req *lsm_req=NULL;
 	snode *target_node;
-	keyset *target_set;
+	map_entry target_set;
 
 	if(list){//skiplist check for memtable and temp_table;
 		target_node=skiplist_find(list,req->key);
@@ -830,57 +824,67 @@ int __lsm_get_sub(request *req,run_t *entry, keyset *table,skiplist *list, int i
 	}
 
 	if(entry && !table && entry->cpt_data){ //tempent check
-		target_set=LSM.lop->find_keyset((char*)entry->cpt_data->sets,req->key);
-		if(target_set){
-			lsm_req=lsm_get_req_factory(req,DATAR,0);
-	//		req->value->ppa=target_set->ppa>>1;
-			req->value->ppa=target_set->ppa;
-			ppa=target_set->ppa;
-			res=4;
+		target_set=LSM.lop->find_map_entry((char*)entry->cpt_data->sets,req->key);
+		if(target_set.type!=INVALIDENT){
+			if(target_set.type==KVUNSEP){
+				memcpy(req->value->value, target_set.data, target_set.info.v_len);
+				rwlock_read_unlock(((rparams*)req->params)->rw_lock);
+				req->type_ftl=((rparams*)req->params)->datas[2]-1;
+				free(req->params);
+				req->end_req(req);
+				return 4;
+			}
+			else if(target_set.type==KVSEP){
+				lsm_req=lsm_get_req_factory(req,DATAR,0);
+				//		req->value->ppa=target_set->ppa>>1;
+				req->value->ppa=target_set.info.ppa;
+				ppa=target_set.info.ppa;
+				res=4;
+			}
+			else{
+				printf("unknown type!!!!! %s:%d\n", __FILE__, __LINE__);
+				abort();
+			}
 		}
 	}
 
 	if(!res && table){
 		if(ISNOCPY(LSM.setup_values) && entry){
-			table=(keyset*)nocpy_pick(entry->pbn);
-		}
-		target_set=LSM.lop->find_keyset((char*)table,req->key);
-		if(likely(target_set)){
-			lsm_req=lsm_get_req_factory(req,DATAR,0);
-	//		req->value->ppa=target_set->ppa>>1;
-			req->value->ppa=target_set->ppa;
-			ppa=target_set->ppa;
-			res=4;
+			table=nocpy_pick(entry->pbn);
 		}
 
 		if(entry){
 			request *temp_req;
-			keyset *new_target_set;
+			map_entry new_target_set;
 			algo_req *new_lsm_req;
-
-			lsm_lru_insert(LSM.llru, entry, (char*)table, LSM.LEVELN-1);
-
+			
+			/*processing pending req*/
 			for(int i=0; i<entry->wait_idx; i++){
 				temp_req=(request*)entry->waitreq[i];
-				new_target_set=LSM.lop->find_keyset((char*)table,temp_req->key);
+				new_target_set=LSM.lop->find_map_entry((char*)table,temp_req->key);
 
-				int *temp_params=(int*)temp_req->params;
+				int *temp_params=((rparams*)temp_req->params)->datas;
 				temp_params[3]++;
-				if(new_target_set){
-					new_lsm_req=lsm_get_req_factory(temp_req,DATAR,0);
-//					temp_req->value->ppa=new_target_set->ppa>>1;
-					temp_req->value->ppa=new_target_set->ppa;
-#ifdef DVALUE
-					/*
-					if(lsm_data_cache_check(temp_req,temp_req->value->ppa)){
+				if(new_target_set.type!=INVALIDENT){
+					if(new_target_set.type==KVUNSEP){
+						memcpy(temp_req->value->value, new_target_set.data, new_target_set.info.v_len);
+						temp_req->type_ftl=temp_params[2]-1;
+						free(temp_params);
 						temp_req->end_req(temp_req);
 					}
-					else{*/
+					else if(new_target_set.type==KVSEP){
+						new_lsm_req=lsm_get_req_factory(temp_req,DATAR,0);
+						temp_req->value->ppa=new_target_set.info.ppa;
+#ifdef DVALUE
 						LSM.li->read(temp_req->value->ppa/NPCINPAGE,PAGESIZE,temp_req->value,ASYNC,new_lsm_req);
-					//}
 #else
-					LSM.li->read(temp_req->value->ppa,PAGESIZE,temp_req->value,ASYNC,new_lsm_req);
+						LSM.li->read(temp_req->value->ppa,PAGESIZE,temp_req->value,ASYNC,new_lsm_req);
 #endif
+					}
+					else{
+						printf("unknown type!!!!! %s:%d\n", __FILE__, __LINE__);
+						abort();
+					}
 				}
 				else{
 					while(1){
@@ -904,6 +908,31 @@ int __lsm_get_sub(request *req,run_t *entry, keyset *table,skiplist *list, int i
 			entry->isflying=0;
 			entry->wait_idx=0;
 		}
+
+		target_set=LSM.lop->find_map_entry((char*)table,req->key);
+		if(likely(target_set.type!=INVALIDENT)){
+			if(target_set.type==KVUNSEP){
+				memcpy(req->value->value, target_set.data, target_set.info.v_len);
+				rwlock_read_unlock(((rparams*)req->params)->rw_lock);
+				req->type_ftl=((rparams*)req->params)->datas[2]-1;
+				free(req->params);
+				req->end_req(req);
+				return 4;
+			}
+			else if(target_set.type==KVSEP){
+				lsm_req=lsm_get_req_factory(req,DATAR,0);
+				//		req->value->ppa=target_set->ppa>>1;
+				req->value->ppa=target_set.info.ppa;
+				ppa=target_set.info.ppa;
+				res=4;
+			}
+			else{
+				printf("unknown type!!!!! %s:%d\n", __FILE__, __LINE__);
+				abort();
+			}
+		}
+
+		lsm_lru_insert(LSM.llru, entry, (char*)table, LSM.LEVELN-1);
 	}
 	
 	if(!entry && !table && !list && idx==LSM.LEVELN-1){
@@ -969,7 +998,7 @@ uint32_t __lsm_get(request *const req){
 	int res;
 	htable mapinfo;
 	run_t *entry;
-	keyset *found=NULL;
+	map_entry found;
 	algo_req *lsm_req=NULL;
 	lsm_params *params;
 	uint8_t result=0;
@@ -1047,7 +1076,7 @@ uint32_t __lsm_get(request *const req){
 			goto retry;
 		}
 
-		mapinfo.sets=ISNOCPY(LSM.setup_values)?(keyset*)nocpy_pick(rp->ppa):(keyset*)req->value->value;
+		mapinfo.sets=ISNOCPY(LSM.setup_values)?nocpy_pick(rp->ppa):req->value->value;
 		res=__lsm_get_sub(req,entry,mapinfo.sets,NULL, level);
 		entry->from_req=NULL;
 		entry->isflying=0;
@@ -1073,12 +1102,25 @@ retry:
 	if(temp_data[3]==1) temp_data[3]=0;
 	switch(result){
 		case CACHING:
-			if(found || found_ppa!=UINT32_MAX){
-				lsm_req=lsm_get_req_factory(req,DATAR,level);
-				req->value->ppa=found_ppa==UINT32_MAX?found->ppa:found_ppa;
-				req->magic=3;
-				temp_data[2]=level;
-				LSM.li->read(CONVPPA(req->value->ppa),PAGESIZE,req->value,ASYNC,lsm_req);
+			if(found.type!=INVALIDENT || found_ppa!=UINT32_MAX){
+				if(found.type==KVUNSEP){
+					memcpy(req->value->value, found.data, found.info.v_len);
+					req->type_ftl=temp_data[2]-1;
+					free(temp_data);
+					req->end_req(req);
+					return CACHING;
+				}
+				else if(found.type==KVSEP){
+					lsm_req=lsm_get_req_factory(req,DATAR,level);
+					req->value->ppa=found_ppa==UINT32_MAX?found.info.ppa:found_ppa;
+					req->magic=3;
+					temp_data[2]=level;
+					LSM.li->read(CONVPPA(req->value->ppa),PAGESIZE,req->value,ASYNC,lsm_req);
+				}
+				else{
+					printf("unknown type!!!!! %s:%d\n", __FILE__, __LINE__);
+					abort();
+				}
 			}
 			else{
 				level++;
@@ -1091,7 +1133,6 @@ retry:
 			temp_data[1]=run;
 
 			rp->entry=entry;
-			static int cnt=0;
 			if(!(ISHWREAD(LSM.setup_values) && level==LSM.LEVELN-1) && entry->isflying==1){	
 				if(entry->wait_idx==0){
 					if(entry->waitreq){
@@ -1162,7 +1203,7 @@ htable *htable_assign(char *cpy_src, bool using_dma){
 	htable *res=(htable*)malloc(sizeof(htable));
 	res->nocpy_table=NULL;
 	if(!using_dma){
-		res->sets=(keyset*)malloc(PAGESIZE);
+		res->sets=(char*)malloc(PAGESIZE);
 		res->t_b=0;
 		res->origin=NULL;
 		if(cpy_src) memcpy(res->sets,cpy_src,PAGESIZE);
@@ -1171,7 +1212,7 @@ htable *htable_assign(char *cpy_src, bool using_dma){
 		if(cpy_src)
 			memcpy(temp->value,cpy_src, PAGESIZE);
 		res->t_b=FS_MALLOC_W;
-		res->sets=(keyset*)temp->value;
+		res->sets=(char*)temp->value;
 		res->origin=temp;
 	}
 	//res->done=0;
@@ -1189,7 +1230,7 @@ void htable_free(htable *input){
 
 htable *htable_copy(htable *input){
 	htable *res=(htable*)malloc(sizeof(htable));
-	res->sets=(keyset*)malloc(PAGESIZE);
+	res->sets=(char*)malloc(PAGESIZE);
 	memcpy(res->sets,input->sets,PAGESIZE);
 	res->t_b=0;
 	res->origin=NULL;
@@ -1229,9 +1270,9 @@ void htable_print(htable * input,ppa_t ppa){
 	}
 }
 void htable_check(htable *in, KEYT lpa, ppa_t ppa,char *log){
-	keyset *target=NULL;
+	char *target=NULL;
 	if(in->nocpy_table){
-		target=(keyset*)in->nocpy_table;
+		target=(char*)in->nocpy_table;
 	}
 	if(!target){ 
 		//	printf("no table\n");

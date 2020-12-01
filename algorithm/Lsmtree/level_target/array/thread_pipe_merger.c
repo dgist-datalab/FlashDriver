@@ -27,12 +27,13 @@ static void temp_func(char* body, level *d, bool merger){
 	uint16_t *bitmap=(uint16_t*)body;
 	KEYT key;
 	//KEYT prev_key;
-	ppa_t *ppa_ptr;
-	for_each_header_start(idx,key,ppa_ptr,bitmap,body)
-		if(key_const_compare(key, 'd', 3707, 262149, NULL)){
+	//ppa_t *ppa_ptr;
+	p_entry pent; 
+	for_each_header_start(idx,pent,bitmap,body)
+		if(key_const_compare(pent.key, 'd', 3707, 262149, NULL)){
 			char buf[100];
 			key_interpreter(key, buf);			
-			printf("maybe update KEY-(%s), ppa:%u ",buf,*ppa_ptr);
+			printf("maybe update type:%d KEY-(%s), ppa:%u ",pent.type, buf,pent.info.ppa);
 			if(key.len==0){
 				printf("error!\n");
 				abort();
@@ -175,76 +176,88 @@ void __pipe_merger(void *argument, int id){
 	rp=pbody_init(tp_r_data,o_num+u_num+LSM.result_padding,NULL,false,NULL);
 #endif
 
-	uint32_t lppa, hppa, rppa=0;
-	KEYT lp_key=pbody_get_next_key(lp,&lppa);
-	KEYT hp_key=pbody_get_next_key(hp,&hppa);
-	KEYT insert_key;
+	p_entry lpentry, hpentry, rpentry;
+	lpentry=pbody_get_next_pentry(lp);
+	hpentry=pbody_get_next_pentry(hp);
 	int next_pop=0;
 	int result_cnt=0;
 
-	while(!(lp_key.len==UINT8_MAX && hp_key.len==UINT8_MAX)){
-		if(lp_key.len==UINT8_MAX){
-			insert_key=hp_key;
-			rppa=hppa;
+	while(!(lpentry.key.len==UINT8_MAX && hpentry.key.len==UINT8_MAX)){
+		if(lpentry.key.len==UINT8_MAX){
+			rpentry=hpentry;
 			next_pop=1;
 		}
-		else if(hp_key.len==UINT8_MAX){
-			insert_key=lp_key;
-			rppa=lppa;
+		else if(hpentry.key.len==UINT8_MAX){
+			rpentry=lpentry;
 			next_pop=-1;
 		}
 		else{
-			if(!KEYVALCHECK(lp_key)){
-				printf("%.*s\n",KEYFORMAT(lp_key));
+			if(!KEYVALCHECK(lpentry.key)){
+				printf("%.*s\n",KEYFORMAT(lpentry.key));
 				abort();
 			}
-			if(!KEYVALCHECK(hp_key)){
-				printf("%.*s\n",KEYFORMAT(hp_key));
+			if(!KEYVALCHECK(hpentry.key)){
+				printf("%.*s\n",KEYFORMAT(hpentry.key));
 				abort();
 			}
 
-			next_pop=KEYCMP(lp_key,hp_key);
+			next_pop=KEYCMP(lpentry.key,hpentry.key);
 			if(next_pop<0){
-				insert_key=lp_key;
-				rppa=lppa;
+				rpentry=lpentry;
 			}
 			else if(next_pop>0){
-				insert_key=hp_key;
-				rppa=hppa;
+				rpentry=hpentry;
 			}
 			else{
-				invalidate_PPA(DATA,lppa,d->idx);
-				rppa=hppa;
-				insert_key=hp_key;
+				rpentry=hpentry;
+				switch(lpentry.type){
+					case KVSEP:
+						invalidate_PPA(DATA,lpentry.info.ppa, d->idx);
+						break;
+					case KVUNSEP:
+						break;
+					default:
+						printf("unknown type %s:%d\n", __FILE__, __LINE__);
+						abort();
+						break;
+
+				}
+			}
+		}
+		/*
+		if(KEYCONSTCOMP(insert_key,"215155000000")==0){
+			printf("----real insert into %d\n",d->idx);
+		}*/
+		if(d->idx==LSM.LEVELN-1 && !bc.full_caching){
+			if(rpentry.type==KVSEP){
+				bc_set_validate(rpentry.info.ppa);
 			}
 		}
 
-		if(d->idx==LSM.LEVELN-1 && !bc.full_caching){
-			bc_set_validate(rppa);
-		}
-	
-		if(next_pop<0) lp_key=pbody_get_next_key(lp,&lppa);
-		else if(next_pop>0) hp_key=pbody_get_next_key(hp,&hppa);
+		if(next_pop<0) lpentry=pbody_get_next_pentry(lp);
+		else if(next_pop>0) hpentry=pbody_get_next_pentry(hp);
 		else{
-			lp_key=pbody_get_next_key(lp,&lppa);
-			hp_key=pbody_get_next_key(hp,&hppa);
+			lpentry=pbody_get_next_pentry(lp);
+			hpentry=pbody_get_next_pentry(hp);
 		}
 
-
-		if(d->idx==LSM.LEVELN-1 && rppa==TOMBSTONE){
+		if(d->idx==LSM.LEVELN-1 && (rpentry.type==KVSEP && rpentry.info.ppa==TOMBSTONE)){
 			//printf("ignore key\n");
 		}
-		else if((pbody_insert_new_key(rp,insert_key,rppa,false))){
+		else if((pbody_insert_new_pentry(rp,rpentry,false))){
 			result_cnt++;
 		}
 	}
 	if(d->idx==LSM.LEVELN-1 && !bc.full_caching){
-		bc_set_validate(rppa);
+		if(rpentry.type==KVSEP){
+			bc_set_validate(rpentry.info.ppa);
+		}
 	}
-	
-	if((pbody_insert_new_key(rp,insert_key,rppa,true))){
-			result_cnt++;
+
+	if((pbody_insert_new_pentry(rp,rpentry,true))){
+		result_cnt++;
 	}
+
 	pbody_clear(lp);
 	pbody_clear(hp);
 	params->result_num=result_cnt;

@@ -9,6 +9,8 @@
 #include "../../bloomfilter.h"
 #include "../../level.h"
 
+typedef map_entry p_entry;
+
 typedef struct pipe_body{
 	uint32_t max_page;
 	uint32_t pidx;
@@ -25,16 +27,14 @@ typedef struct pipe_body{
 	uint32_t kidx;
 	bool read_from_run;
 
-	KEYT prev_check;
-	ppa_t prev_ppa;
+	p_entry prev_pent;
 }p_body;
 
-p_body *pbody_init(char** data, uint32_t list_size, pl_run *pl_datas, bool read_from_run,BF *filter);
-KEYT pbody_get_next_key(p_body *p, uint32_t *r_ppa);
+p_body *pbody_init(char** data, uint32_t list_size, pl_run *pl_datas, bool read_from_run, BF *filter);
+p_entry pbody_get_next_pentry(p_body *p);
 
-char* pbody_insert_new_key(p_body *p,KEYT key, uint32_t ppa,bool f);
+char* pbody_insert_new_pentry(p_body *p, p_entry, bool f);
 char *pbody_get_data(p_body *p, bool init);
-char *pbody_new_data_insert(p_body *p, char **new_data, int new_data_size);
 char *pbody_clear(p_body *p);
 p_body *pbody_move_dummy_init(char **data, uint32_t data_num);
 //void pbody_data_print(char *data);

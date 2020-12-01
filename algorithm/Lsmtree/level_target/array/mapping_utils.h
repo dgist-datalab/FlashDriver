@@ -4,19 +4,60 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "array.h"
-
+#include "pipe.h"
+/*
 static inline uint32_t __extract_ppa(KEYT key){
 	return *(uint32_t*)(key.key-sizeof(ppa_t));
 }
-static inline KEYT __key_at(uint16_t idx, char *data, uint16_t *bitmap){
-	KEYT res;
+*/
+static inline p_entry  __extract_p_entry(uint16_t idx, char *data, uint16_t* bitmap){
 	if(bitmap[0] < idx){
 		printf("access not populated area! %s:%u\n", __FILE__, __LINE__);
 		abort();
 	}
-	res.key=&data[bitmap[idx]+sizeof(ppa_t)];
-	res.len=bitmap[idx+1]-bitmap[idx]-sizeof(ppa_t);
+	char *body=&data[bitmap[idx]];
+	uint32_t body_ptr=0;
+	p_entry res;
+	res.type=body[body_ptr++];
+	switch(res.type){
+		case KVSEP:
+			res.info.ppa=*(uint32_t*)&body[body_ptr];
+			res.key.len=bitmap[idx+1]-bitmap[idx]-sizeof(ppa_t)-1;
+			res.key.key=&data[bitmap[idx]+sizeof(ppa_t)];
+			break;
+		case KVUNSEP:
+			res.info.v_len=*(uint32_t*)&body[body_ptr];
+			body_ptr+=res.info.v_len+sizeof(uint32_t);
+			res.key.len=bitmap[idx+1]-bitmap[idx]-sizeof(uint32_t)-1-res.info.v_len;
+			res.key.key=&body[body_ptr];
+			break;
+	}
 	return res;
+}
+
+static inline KEYT __key_at(uint16_t idx, char *data, uint16_t *bitmap){
+	if(bitmap[0] < idx){
+		printf("access not populated area! %s:%u\n", __FILE__, __LINE__);
+		abort();
+	}
+	char *body=&data[bitmap[idx]];
+	uint32_t body_ptr=0;
+	p_entry res;
+	res.type=body[body_ptr++];
+	switch(res.type){
+		case KVSEP:
+			res.key.len=bitmap[idx+1]-bitmap[idx]-sizeof(ppa_t)-1;
+			res.key.key=&data[bitmap[idx]+sizeof(ppa_t)];
+			break;
+		case KVUNSEP:
+			res.info.v_len=*(uint32_t*)&body[body_ptr];
+			body_ptr+=res.info.v_len+sizeof(uint32_t);
+			res.key.len=bitmap[idx+1]-bitmap[idx]-sizeof(uint32_t)-1-res.info.v_len;
+			res.key.key=&body[body_ptr];
+			break;
+	}
+
+	return res.key;
 }
 
 static inline KEYT __extract_start_key(char *data){
@@ -79,23 +120,59 @@ static inline char *__split_data(char *data, KEYT key, KEYT key2, bool debug){
 	uint16_t idx=0;
 
 	uint16_t *org_bitmap=(uint16_t*)data;
-	KEYT temp;
+	p_entry pent;
+	uint32_t added_length;
+	char *target;
 	for(uint16_t i=boundary+1; i<=org_bitmap[0]; i++){
-		temp=__key_at(i, data, org_bitmap);
-		uint32_t ppa=__extract_ppa(temp);
-		memcpy(&ptr[data_start],&ppa,sizeof(ppa_t));
-		memcpy(&ptr[data_start+sizeof(ppa_t)],temp.key,temp.len);
+		pent=__extract_p_entry(i, data, bitmap);
+		added_length=0;
+		target=&ptr[data_start];
+		switch(pent.type){
+			case KVSEP:
+				target[added_length++]=KVSEP;
+				memcpy(&target[added_length],&pent.info.ppa,sizeof(uint32_t));
+				added_length+=sizeof(uint32_t);
+				memcpy(&target[added_length],pent.key.key,pent.key.len);
+				added_length+=pent.key.len;
+				break;
+			case KVUNSEP:
+				target[added_length++]=KVUNSEP;
+				memcpy(&target[added_length],&pent.info.v_len,sizeof(uint32_t));
+				added_length+=sizeof(uint32_t);
+				memcpy(&target[added_length],pent.data, pent.info.v_len);
+				added_length=pent.info.v_len;
+				memcpy(&target[added_length],pent.key.key,pent.key.len);
+				added_length+=pent.key.len;
+				break;
+			default:
+				printf("unknown type! %s:%d\n", __FILE__, __LINE__);
+				abort();
+				break;
+		}
 
 		bitmap[idx+1]=data_start;
-		data_start+=temp.len+sizeof(ppa_t);
+		data_start+=added_length;
 		idx++;
 	}
 	bitmap[idx+1]=data_start;
 	bitmap[0]=idx;
 
-	KEYT boundary_key=__key_at(boundary, data, org_bitmap);
+	p_entry boundary_pentry=__extract_p_entry(boundary, data, org_bitmap);
 	org_bitmap[0]=boundary;
-	org_bitmap[boundary+1]=org_bitmap[boundary]+boundary_key.len+sizeof(ppa_t);
+	uint32_t boundary_length=0;
+	switch(boundary_pentry.type){
+		case KVSEP:
+			boundary_length+=1+sizeof(ppa_t)+boundary_pentry.key.len;
+			break;
+		case KVUNSEP:
+			boundary_length+=1+sizeof(uint32_t)+boundary_pentry.info.v_len+boundary_pentry.key.len;
+			break;
+		default:
+			printf("unknown type! %s:%d\n", __FILE__, __LINE__);
+			abort();
+			break;
+	}
+	org_bitmap[boundary+1]=org_bitmap[boundary]+boundary_length;
 
 	/*
 	printf("split front!\n");

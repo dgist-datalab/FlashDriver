@@ -113,8 +113,6 @@ uint32_t delta_compression_comp(char *src, char *des){
 	cm.now_body_idx=0;
 	compress_master_set_comp_init(&cm.sets[0], &des[cm.now_body_idx]);
 	int idx;
-	KEYT key;
-	ppa_t *ppa;
 	uint16_t *bitmap;
 	char *body;
 	body=src;
@@ -124,13 +122,16 @@ uint32_t delta_compression_comp(char *src, char *des){
 	int nxt_cnt=0;
 	static int called_cnt=0;
 
-	for_each_header_start(idx,key,ppa,bitmap,body)
+	map_entry ment;
+	for_each_header_start(idx,ment,bitmap,body)
+		printf("should revised!!!!\n");
+		abort();
 		nxt_cnt++;
 		if(cm.now_body_idx>8192){
 			printf("over data file!!\n");
 			abort();
 		}
-		if(insert_key_ppa(now, key, *ppa, &cm.now_body_idx)==INSERT_SUCCESS){
+		if(insert_key_ppa(now, ment.key, ment.info.ppa, &cm.now_body_idx)==INSERT_SUCCESS){
 			continue;
 		}
 		else{

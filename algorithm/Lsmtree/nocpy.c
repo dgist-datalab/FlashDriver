@@ -4,14 +4,13 @@
 #include "../../interface/queue.h"
 #include "../../blockmanager/bb_checker.h"
 extern lsmtree LSM;
-keyset **page;
+char **page;
 extern bb_checker checker;
 queue *delayed_trim_queue;
 #define CHANGEPPA(ppa) (ppa-DATAPART_SEGS*16384)
 void nocpy_init(){
-	page=(keyset**)malloc(sizeof(keyset*)*((MAPPART_SEGS+LOG_S)*_PPS));
+	page=(char**)malloc(sizeof(char*)*((MAPPART_SEGS+LOG_S)*_PPS));
 	for(int i=0; i<(MAPPART_SEGS)*_PPS; i++){
-		//page[i]=(keyset*)malloc(PAGESIZE);
 		page[i]=NULL;
 	}
 	printf("------------# of copy%ld\n",(MAPPART_SEGS)*_PPS);
@@ -36,7 +35,7 @@ void nocpy_free_block(uint32_t _ppa){
 
 void nocpy_copy_to(char *des, uint32_t _ppa){
 	uint32_t ppa=CHANGEPPA(_ppa);
-	if(page[ppa]==NULL) page[ppa]=(keyset*)malloc(PAGESIZE);
+	if(page[ppa]==NULL) page[ppa]=(char*)malloc(PAGESIZE);
 	memcpy(page[ppa],des,PAGESIZE);
 }
 
@@ -60,11 +59,11 @@ void nocpy_copy_from_change(char *des, uint32_t _ppa){
 	}
 
 #if (LEVELN!=1) && !defined(KVSSD)
-	if(((keyset*)des)->lpa>1024 || ((keyset*)des)->lpa<=0){
+	if(((char*)des)->lpa>1024 || ((char*)des)->lpa<=0){
 		abort();
 	}
 #endif
-	page[ppa]=(keyset*)des;
+	page[ppa]=(char*)des;
 }
 
 void nocpy_copy_from(char *src, uint32_t _ppa){
@@ -75,7 +74,7 @@ void nocpy_copy_from(char *src, uint32_t _ppa){
 		free(page[ppa]);
 		page[ppa]=NULL;
 	}
-	page[ppa]=(keyset*)malloc(PAGESIZE);
+	page[ppa]=(char*)malloc(PAGESIZE);
 	memcpy(page[ppa],src,PAGESIZE);
 }
 

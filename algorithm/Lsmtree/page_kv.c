@@ -485,7 +485,7 @@ uint32_t update_cache, noupdate_cache,nouptdone;
 uint8_t gc_data_issue_header(struct gc_node *g, gc_params *params, int req_size){
 	uint8_t result=0;
 	run_t *now=NULL;
-	keyset *found=NULL;
+	map_entry found;
 	uint32_t found_ppa;
 	//static int cnt=0;
 	//printf("test cnt:%d\n",cnt++);
@@ -502,8 +502,13 @@ uint8_t gc_data_issue_header(struct gc_node *g, gc_params *params, int req_size)
 
 	switch(result){
 		case CACHING:
-			if(found){
-				if(found->ppa==g->ppa){
+			if(found.type!=INVALIDENT){
+				if(found.type==KVUNSEP){
+					printf("it can't be!!!\n");
+					abort();
+				}
+
+				if(found.info.ppa==g->ppa){
 					g->status=DONE;
 					update_cache++;
 				}
@@ -591,7 +596,7 @@ uint32_t header_overlap_cnt;
 uint32_t gc_data_each_header_check(struct gc_node *g, int size){
 	gc_params *_p=(gc_params*)g->params;
 	int done_cnt=0;
-	keyset *find;
+	map_entry find;
 	run_t *ent=_p->ent;
 	htable_t *data=_p->data?_p->data:(htable_t *)ent->run_data;
 	if(!data){
@@ -614,8 +619,13 @@ uint32_t gc_data_each_header_check(struct gc_node *g, int size){
 		gc_node *target=i==-1?g:(gc_node*)ent->gc_waitreq[i];
 
 		gc_params *p=(gc_params*)target->params;
-		find=ISNOCPY(LSM.setup_values)?LSM.lop->find_keyset((char*)data->nocpy_table,target->lpa): LSM.lop->find_keyset((char*)data->sets,target->lpa);
-		if(find && find->ppa==target->ppa){
+		find=ISNOCPY(LSM.setup_values)?LSM.lop->find_map_entry((char*)data->nocpy_table,target->lpa): LSM.lop->find_map_entry((char*)data->sets,target->lpa);
+		if(find.type==KVUNSEP){
+			printf("it can't be!!\n");
+			abort();
+		}
+
+		if(find.type!=INVALIDENT && find.info.ppa==target->ppa){
 			target->status=DONE;
 			done_cnt++;
 			if(!set_flag && i==-1){
@@ -631,7 +641,7 @@ uint32_t gc_data_each_header_check(struct gc_node *g, int size){
 			p->ent->gc_should_write=DOWRITE;
 		}
 		else{
-			if(find){
+			if(find.type!=INVALIDENT){
 				target->plength=0;
 				target->status=NOUPTDONE;
 				if(i==-1){original_target_processed=true;

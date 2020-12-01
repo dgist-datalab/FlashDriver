@@ -142,7 +142,7 @@ typedef struct commit_log_read{
 	char *data;
 }cml;
 
-void *insert_KP_to_skip(KEYT, ppa_t);
+void *insert_KP_to_skip(map_entry);
 
 void transaction_force_compaction(){
 	if(!compaction_wait_job_number()){
@@ -542,12 +542,22 @@ uint32_t transaction_commit(request *const req){
 	return 1;
 }
 
-void *insert_KP_to_skip(KEYT _key, ppa_t ppa){
+//void *insert_KP_to_skip(KEYT _key, ppa_t ppa){
+void *insert_KP_to_skip(map_entry map){
 	KEYT temp_key;
-	kvssd_cpy_key(&temp_key, &_key);
+	kvssd_cpy_key(&temp_key, &map.key);
 
 	bench_custom_start(write_opt_time2, 6);
-	skiplist_insert_existIgnore(_tm.commit_KP, temp_key, ppa, !(ppa==TOMBSTONE));
+	if(map.type==KVSEP){
+		skiplist_insert_data_existIgnore(_tm.commit_KP, temp_key, 0, NULL, map.info.ppa, !(map.info.ppa==TOMBSTONE));
+	}
+	else if(map.type==KVUNSEP){
+		skiplist_insert_data_existIgnore(_tm.commit_KP, temp_key, map.info.v_len, map.data, UINT32_MAX, true);
+	}
+	else{
+		printf("unknown type!!! %s:%d\n",__FILE__, __LINE__);
+		abort();
+	}
 	bench_custom_A(write_opt_time2, 6);
 /*
 	if(key_const_compare(_key, 'd', 3707, 262149, NULL)){
@@ -591,7 +601,7 @@ uint32_t processing_read(void * req, transaction_entry **entry_set, t_rparams *t
 	}
 
 	uint32_t res=0;
-	keyset *target;
+	map_entry target;
 	for(uint32_t i=trp->index ; entry_set[i]!=NULL; i++){
 		transaction_entry *temp=entry_set[i];
 		switch(temp->status){
@@ -627,16 +637,21 @@ uint32_t processing_read(void * req, transaction_entry **entry_set, t_rparams *t
 				memory_log_lock(_tm.mem_log);
 				if(ISMEMPPA(temp->ptr.physical_pointer)){
 					//log buffer hit
-					target=LSM.lop->find_keyset(memory_log_get(_tm.mem_log, temp->ptr.physical_pointer), user_req->key);
+					target=LSM.lop->find_map_entry(memory_log_get(_tm.mem_log, temp->ptr.physical_pointer), user_req->key);
 					memory_log_unlock(_tm.mem_log);
-					if(target){
+					if(target.type!=INVALIDENT){
+						if(target.type==KVUNSEP){
+							memcpy(user_req->value->value, target.data, target.info.v_len);
+							user_req->end_req(user_req);
+							return 0;
+						}
 						tr_req=(algo_req*)malloc(sizeof(algo_req));
 						tr_req->end_req=transaction_end_req;
 						tr_req->params=(void*)trp;
 						tr_req->type=DATAR;
 						tr_req->parents=user_req;
-						user_req->value->ppa=target->ppa;
-						LSM.li->read(target->ppa/NPCINPAGE, PAGESIZE, trp->value, ASYNC, tr_req);
+						user_req->value->ppa=target.info.ppa;
+						LSM.li->read(target.info.ppa/NPCINPAGE, PAGESIZE, trp->value, ASYNC, tr_req);
 						return 0;
 					}
 					else
@@ -699,13 +714,18 @@ uint32_t __transaction_get(request *const req){
 		trp=(t_rparams*)req->params;
 		entry_set=trp->entry_set;
 		/*searching meta segment*/
-		keyset *sets=ISNOCPY(LSM.setup_values) ? (keyset*)nocpy_pick(trp->ppa)
-			: (keyset*)trp->value->value;
-		keyset *target=LSM.lop->find_keyset((char*)sets, req->key);
-		if(target){	
-			if(target->ppa==TOMBSTONE){
+		char *sets=ISNOCPY(LSM.setup_values) ? nocpy_pick(trp->ppa)
+			: trp->value->value;
+		map_entry target=LSM.lop->find_map_entry(sets, req->key);
+		if(target.type!=INVALIDENT){	
+			if(target.info.ppa==TOMBSTONE){
 				free(entry_set);
 				memset(req->value->value, 0, LPAGESIZE);
+				req->end_req(req);
+				return 1;
+			}
+			else if(target.type==KVUNSEP){
+				memcpy(req->value->value, target.data, target.info.v_len);
 				req->end_req(req);
 				return 1;
 			}
@@ -715,8 +735,8 @@ uint32_t __transaction_get(request *const req){
 			tr_req->params=(void*)trp;
 			tr_req->type=DATAR;
 			tr_req->parents=req;
-			req->value->ppa=target->ppa;
-			LSM.li->read(target->ppa/NPCINPAGE, PAGESIZE, trp->value, ASYNC, tr_req);
+			req->value->ppa=target.info.ppa;
+			LSM.li->read(target.info.ppa/NPCINPAGE, PAGESIZE, trp->value, ASYNC, tr_req);
 			free(entry_set);
 			return 1;
 		}
@@ -726,7 +746,7 @@ uint32_t __transaction_get(request *const req){
 	}
 
 	switch(res){
-		case 0: //CACHED, CACHEDCOMMIT
+		case 0: //CACHED, CACHEDCOMMIT, MEMLOG
 			free(entry_set);
 			free(req->params);
 			return 1;
@@ -982,6 +1002,7 @@ bool transaction_debug_search(KEYT key){
 	char *test=(char*)malloc(PAGESIZE);
 	for(uint32_t i=0; i<_tm.ttb->full; i++){
 		transaction_entry *etr=&_tm.ttb->etr[i];
+		map_entry temp;
 		switch(etr->status){
 			case EMPTY:
 				continue;
@@ -997,8 +1018,8 @@ bool transaction_debug_search(KEYT key){
 				if(lsm_test_read(etr->ptr.physical_pointer,test)){
 					return true;
 				}
-							
-				if(LSM.lop->find_keyset(test,key)){
+				temp=LSM.lop->find_map_entry(test, key);	
+				if(temp.type!=INVALIDENT){
 					printf("find in transaction log index:%u!!\n",i);
 					free(test);
 					return true;

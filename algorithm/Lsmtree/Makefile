@@ -38,7 +38,6 @@ SRCS +=\
 	   variable.c\
 	   data_simul.c\
 	   lsmtree_params_settings.c\
-	   lsmtree_multilevel.c\
 	   transaction_table.c\
 	   lsmtree_transaction.c\
 	   key_packing.c\
@@ -49,7 +48,6 @@ SRCS +=\
 	   memory_log.c\
 	   koo_buffer_manager.c\
 	   delta_comp.c\
-	   lsmtree_defragmentation.c\
 
 #merge_compaction.c\
 	   run_array.c\
@@ -60,6 +58,8 @@ SRCS +=\
 	   pipeline_compaction2.c\
 	   lru_cache.c\
 	   write_buffer_manager.c\
+	   lsmtree_multilevel.c\
+	   lsmtree_defragmentation.c\
 
 
 OBJS :=\

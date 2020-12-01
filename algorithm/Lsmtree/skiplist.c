@@ -615,6 +615,7 @@ snode *skiplist_insert(skiplist *list,KEYT key,value_set* value, bool valid){
 			invalidate_PPA(DATA,x->ppa, -1);
 			x->ppa=valid?UINT32_MAX:TOMBSTONE;
 		}
+
 #if defined(KVSSD)
 		free(key.key);
 #endif
@@ -648,6 +649,9 @@ snode *skiplist_insert(skiplist *list,KEYT key,value_set* value, bool valid){
 
 #ifdef KVSSD
 		list->all_length+=KEYLEN(key);
+		if(key.key[0]=='m'){
+			list->all_length+=x->value.u_value->length;
+		}
 #endif
 
 #ifdef Lsmtree
@@ -1067,3 +1071,104 @@ uint32_t skiplist_memory_size(skiplist *skip){
 	return res;
 }
 
+snode *skiplist_insert_data_existIgnore(skiplist *list, KEYT key, uint32_t data_len, char *data, ppa_t ppa, bool isvalid){
+	snode *update[MAX_L+1];
+	snode *x=list->header;
+	for(int i=list->level; i>=1; i--){
+#if defined(KVSSD) 
+		while(KEYCMP(x->list[i]->key,key)<0)
+#else
+		while(x->list[i]->key<key)
+#endif
+			x=x->list[i];
+		update[i]=x;
+	}
+	x=x->list[1];
+#if defined(KVSSD)
+	if(KEYTEST(key,x->key))
+#else
+	if(key==x->key)
+#endif
+	{
+		list->data_size-=x->value.u_value?(x->value.u_value->length):0;
+		list->data_size+=data?(data_len):0;
+		if(x->value.u_value){
+			if(data){
+				if(data_len!=x->value.u_value->length){
+					printf("can't be!!!\n");
+					abort();
+				}
+				memcpy(x->value.u_value->value, data, data_len);	
+			}
+			else if(!isvalid){
+				inf_free_valueset(x->value.u_value, FS_MALLOC_W);
+				x->value.u_value=NULL;
+			}
+		}
+		
+		if(x->ppa==TOMBSTONE){
+			if(x->value.u_value){
+				printf("can't be!!!\n");
+				abort();		
+			}
+
+			if(data){
+				x->value.u_value=inf_get_valueset(data, FS_MALLOC_W, data_len);
+			}
+			else{
+				x->ppa=ppa;
+			}
+		}
+		else{
+			invalidate_PPA(DATA, x->ppa, -1);
+			x->ppa=isvalid? ppa: TOMBSTONE;
+		}
+#if defined(KVSSD)
+		free(key.key);
+#endif
+		x->isvalid=isvalid;
+		return x;
+	}
+	else{
+		int level=getLevel();
+		if(level>list->level){
+			for(int i=list->level+1; i<=level; i++){
+				update[i]=list->header;
+			}
+			list->level=level;
+		}
+		x=(snode*)malloc(sizeof(snode));
+		x->list=(snode**)malloc(sizeof(snode*)*(level+1));
+
+		x->key=key;
+		x->isvalid=isvalid;
+
+		if(data){
+			x->value.u_value=inf_get_valueset(data, FS_MALLOC_W, data_len);
+			x->ppa=UINT32_MAX;
+		}
+		else{
+			x->ppa=ppa;
+		}
+#ifdef KVSSD
+		list->all_length+=KEYLEN(key)+data_len;
+#endif
+
+#ifdef Lsmtree
+		x->iscaching_entry=false;
+#endif
+
+		for(int i=1; i<=level; i++){
+			x->list[i]=update[i]->list[i];
+			update[i]->list[i]=x;
+		}
+
+		//new back
+		x->back=x->list[1]->back;
+		x->list[1]->back=x;
+
+		x->level=level;
+		list->size++;
+	}
+	return x;
+}

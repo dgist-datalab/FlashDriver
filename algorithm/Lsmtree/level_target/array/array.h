@@ -8,11 +8,10 @@
 #include "../../level.h"
 #include "../../lsmtree.h"
 #include "../../bloomfilter.h"
-#define for_each_header_start(idx,key,ppa_ptr,bitmap,body)\
+#include "mapping_utils.h"
+#define for_each_header_start(idx,pent,bitmap,body)\
 	for(idx=1; bitmap[idx]!=UINT16_MAX && idx<=bitmap[0]; idx++){\
-		ppa_ptr=(ppa_t*)&body[bitmap[idx]];\
-		key.key=(char*)&body[bitmap[idx]+sizeof(ppa_t)];\
-		key.len=bitmap[idx+1]-bitmap[idx]-sizeof(ppa_t);\
+		do{pent=__extract_p_entry(idx, body, bitmap);}while(0);\
 
 #define for_each_header_end }
 
@@ -117,10 +116,10 @@ typedef struct array_key_iter{
 level* array_init(int size, int idx, float fpr, bool istier);
 void array_free(level*);
 run_t* array_insert(level *, run_t*);
-keyset* array_find_keyset(char *data,KEYT lpa);
+map_entry array_find_map_entry(char *data,KEYT lpa);
 uint32_t array_find_idx_lower_bound(char *data, KEYT lpa);
-void array_find_keyset_first(char *data,KEYT *des);
-void array_find_keyset_last(char *data,KEYT *des);
+void array_find_first_key(char *data,KEYT *des);
+void array_find_last_key(char *data,KEYT *des);
 run_t *array_get_run_idx(level *, int idx);
 run_t *array_make_run(KEYT start, KEYT end, uint32_t pbn);
 run_t *array_find_run( level*,KEYT);
@@ -185,7 +184,7 @@ void array_cache_insert(level *,skiplist*);
 void array_cache_merge(level *, level *);
 void array_cache_free(level *);
 void array_cache_move(level *, level *);
-keyset *array_cache_find(level *, KEYT lpa);
+//keyset *array_cache_find(level *, KEYT lpa);
 
 char *array_cache_find_run_data(level *,KEYT lpa);
 char *array_cache_next_run_data(level *,KEYT);
@@ -194,23 +193,26 @@ skiplist* array_cache_get_body(level *);
 run_t *array_cache_iter_nxt(lev_iter *);
 //char *array_cache_find_lowerbound(level *, KEYT lpa, KEYT *start,bool);
 int array_cache_get_sz(level*);
-*/
-keyset_iter* array_header_get_keyiter(level *, char *,KEYT *);
-keyset array_header_next_key(level *, keyset_iter *);
-void array_header_next_key_pick(level *, keyset_iter *, keyset *res);
+
+//keyset_iter* array_header_get_keyiter(level *, char *,KEYT *);
+//keyset array_header_next_key(level *, keyset_iter *);
+//void array_header_next_key_pick(level *, keyset_iter *, keyset *res);
+ 
+ */
 
 KEYT *array_get_lpa_from_data(char *data,ppa_t simul_ppa,bool isheader);
 int array_binary_search(run_t *body,uint32_t max_t, KEYT lpa);
 int array_binary_search_filter(run_t *body,uint32_t max_t, KEYT lpa, int32_t *first);
 //int array_lowerbound_search(run_t *body,uint32_t max_t, KEYT lpa);
 int array_bound_search(run_t *body,uint32_t max_t, KEYT lpa,bool islower);
-
-keyset_iter *array_key_iter_init(char *key_data,int from);
-keyset *array_key_iter_nxt(keyset_iter *,keyset *);
+/*
+//keyset_iter *array_key_iter_init(char *key_data,int from);
+//keyset *array_key_iter_nxt(keyset_iter *,keyset *);
+*/
 run_t *array_p_merger_cutter(skiplist *,run_t **, run_t **,float);
 void array_normal_merger(skiplist *,run_t *r,bool);
 //void array_multi_cutter(skiplist *,KEYT, bool just_one);
-void array_checking_each_key(char *data,void*(*test)(KEYT a,ppa_t ppa));
+void array_checking_each_key(char *data,void*(*test)(map_entry ent));
 //run_t *array_lsm_lower_bound_run(lsmtree *lsm, KEYT lpa);
 uint32_t array_get_level_mem_size(level *lev);
 void array_check_order(level *);

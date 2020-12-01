@@ -20,10 +20,10 @@ level_ops a_ops={
 	.release=array_free,
 	.insert=array_insert,
 	.lev_copy=array_lev_copy,
-	.find_keyset=array_find_keyset,
+	.find_map_entry=array_find_map_entry,
 	.find_idx_lower_bound=array_find_idx_lower_bound,
-	.find_keyset_first=array_find_keyset_first,
-	.find_keyset_last=array_find_keyset_last,
+	.find_first_key=array_find_first_key,
+	.find_last_key=array_find_last_key,
 	.full_check=def_fchk,
 	.tier_align=array_tier_align,
 	.move_heap=def_move_heap,
@@ -41,10 +41,10 @@ level_ops a_ops={
 	.get_number_runs=array_get_numbers_run,
 	.get_max_table_entry=a_max_table_entry,
 	.get_max_flush_entry=a_max_flush_entry,
-
-	.keyset_iter_init=array_key_iter_init,
-	.keyset_iter_nxt=array_key_iter_nxt,
-
+/*
+	//.keyset_iter_init=array_key_iter_init,
+	//.keyset_iter_nxt=array_key_iter_nxt,
+*/
 	.mem_cvt2table=array_mem_cvt2table,
 #ifdef THREADCOMPACTION
 	.merger=array_thread_pipe_merger,
@@ -53,7 +53,7 @@ level_ops a_ops={
 	.merger=array_pipe_merger,
 	.cutter=array_pipe_cutter,
 #endif
-	.partial_merger_cutter=array_pipe_p_merger_cutter,
+	.partial_merger_cutter=NULL,//array_pipe_p_merger_cutter,
 	.normal_merger=array_normal_merger,
 //	.normal_cutter=array_multi_cutter,
 #ifdef BLOOM
@@ -96,10 +96,11 @@ level_ops a_ops={
 	//.cache_get_body=array_cache_get_body,
 	.cache_get_iter=array_cache_get_iter,
 	.cache_iter_nxt=array_cache_iter_nxt,
-*/	
+
 	.header_get_keyiter=array_header_get_keyiter,
 	.header_next_key=array_header_next_key,
 	.header_next_key_pick=array_header_next_key_pick,
+ */
 #ifdef KVSSD
 	.get_lpa_from_data=array_get_lpa_from_data,
 #endif
@@ -371,7 +372,7 @@ run_t* array_insert(level *lev, run_t* r){
 	return target;
 }
 
-keyset* array_find_keyset(char *data,KEYT lpa){
+map_entry array_find_map_entry(char *data,KEYT lpa){
 	char *body=data;
 	uint16_t *bitmap=(uint16_t*)body;
 	int s=1,e=bitmap[0];
@@ -379,11 +380,13 @@ keyset* array_find_keyset(char *data,KEYT lpa){
 	while(s<=e){
 		LMI.run_binary_cnt++;
 		int mid=(s+e)/2;
+		/*
 		target.key=&body[bitmap[mid]+sizeof(ppa_t)];
-		target.len=bitmap[mid+1]-bitmap[mid]-sizeof(ppa_t);
+		target.len=bitmap[mid+1]-bitmap[mid]-sizeof(ppa_t);*/
+		target=__key_at(mid, data, bitmap);
 		int res=KEYCMP(target,lpa);
 		if(res==0){
-			return (keyset*)&body[bitmap[mid]];
+			return __extract_p_entry(mid, data, bitmap);
 		}
 		else if(res<0){
 			s=mid+1;
@@ -392,7 +395,9 @@ keyset* array_find_keyset(char *data,KEYT lpa){
 			e=mid-1;
 		}
 	}
-	return NULL;
+	map_entry t;
+	t.type=INVALIDENT;
+	return t;
 }
 
 run_t *array_find_run( level* lev,KEYT lpa){
@@ -771,21 +776,18 @@ run_t *array_make_run(KEYT start, KEYT end, uint32_t pbn){
 	return res;
 }
 
-KEYT *array_get_lpa_from_data(char *data,ppa_t ppa,bool isheader){
+KEYT *array_get_lpa_from_data(char *data, ppa_t ppa,bool isheader){
 	KEYT *res=(KEYT*)malloc(sizeof(KEYT));
 	
 	if(isheader){
-		int idx;
-		KEYT key;
-		ppa_t *ppa;
 		uint16_t *bitmap;
 		char *body=data;
 		bitmap=(uint16_t*)body;
-
-		for_each_header_start(idx,key,ppa,bitmap,body)
-			kvssd_cpy_key(res,&key);
-			return res;
-		for_each_header_end
+	
+		KEYT temp;
+		array_find_first_key(data, &temp);
+		kvssd_cpy_key(res, &temp);
+		return res;
 	}
 	else{
 #ifdef EMULATOR
@@ -799,52 +801,51 @@ KEYT *array_get_lpa_from_data(char *data,ppa_t ppa,bool isheader){
 	}
 	return res;
 }
+/*
+//keyset_iter *array_key_iter_init(char *key_data, int start){
+//	keyset_iter *res=(keyset_iter*)malloc(sizeof(keyset_iter));
+//	a_key_iter *data=(a_key_iter*)malloc(sizeof(a_key_iter));
+//
+//	res->private_data=(void*)data;
+//	data->idx=start;
+//	data->body=key_data;
+//	data->bitmap=(uint16_t*)data->body;
+//	return res;
+//}
 
-keyset_iter *array_key_iter_init(char *key_data, int start){
-	keyset_iter *res=(keyset_iter*)malloc(sizeof(keyset_iter));
-	a_key_iter *data=(a_key_iter*)malloc(sizeof(a_key_iter));
-
-	res->private_data=(void*)data;
-	data->idx=start;
-	data->body=key_data;
-	data->bitmap=(uint16_t*)data->body;
-	return res;
+//keyset *array_key_iter_nxt(keyset_iter *k_iter, keyset *target){
+//	a_key_iter *ds=(a_key_iter*)k_iter->private_data;
+//	if(ds->bitmap[ds->idx]==UINT16_MAX || ds->idx>ds->bitmap[0]){
+//		free(ds);
+//		free(k_iter);
+//		return NULL;
+//	}
+//	ds->ppa=(uint32_t*)&ds->body[ds->bitmap[ds->idx]];
+//	ds->key.key=(char*)&ds->body[ds->bitmap[ds->idx]+sizeof(uint32_t)];
+//	ds->key.len=ds->bitmap[ds->idx+1]-ds->bitmap[ds->idx]-sizeof(uint32_t);
+//
+//	target->lpa=ds->key;
+//	target->ppa=*ds->ppa;
+//	ds->idx++;
+//	return target;
+//}
+*/
+void array_find_first_key(char *data, KEYT *des){
+	KEYT temp=__extract_start_key(data);
+	des->key=temp.key;
+	des->len=temp.len;
 }
 
-keyset *array_key_iter_nxt(keyset_iter *k_iter, keyset *target){
-	a_key_iter *ds=(a_key_iter*)k_iter->private_data;
-	if(ds->bitmap[ds->idx]==UINT16_MAX || ds->idx>ds->bitmap[0]){
-		free(ds);
-		free(k_iter);
-		return NULL;
-	}
-	ds->ppa=(uint32_t*)&ds->body[ds->bitmap[ds->idx]];
-	ds->key.key=(char*)&ds->body[ds->bitmap[ds->idx]+sizeof(uint32_t)];
-	ds->key.len=ds->bitmap[ds->idx+1]-ds->bitmap[ds->idx]-sizeof(uint32_t);
-
-	target->lpa=ds->key;
-	target->ppa=*ds->ppa;
-	ds->idx++;
-	return target;
-}
-
-void array_find_keyset_first(char *data, KEYT *des){
-	char *body=data;
-	uint16_t *bitmap=(uint16_t *)body;
-	
-	des->key=&body[bitmap[1]+sizeof(uint32_t)];
-	des->len=bitmap[1]-bitmap[2]-sizeof(uint32_t);
-}
-
-void array_find_keyset_last(char *data, KEYT *des){
-	char *body=data;
-	uint16_t *bitmap=(uint16_t *)body;
-	int e=bitmap[0];
-	des->key=&body[bitmap[e]+sizeof(uint32_t)];
-	des->len=bitmap[e]-bitmap[e+1]-sizeof(uint32_t);
+void array_find_last_key(char *data, KEYT *des){
+	KEYT temp=__extract_end_key(data);
+	des->key=temp.key;
+	des->len=temp.len;
 }
 
 uint32_t array_find_idx_lower_bound(char *data, KEYT lpa){
+	printf("not edited!\n");
+	abort();
+	/*
 	char *body=data;
 	uint16_t *bitmap=(uint16_t*)body;
 	int s=1, e=bitmap[0];
@@ -873,7 +874,7 @@ uint32_t array_find_idx_lower_bound(char *data, KEYT lpa){
 	else{
 		//lpa is smaller
 		return mid;
-	}
+	}*/
 }
 
 run_t *array_get_run_idx(level *lev, int idx){

@@ -100,11 +100,13 @@ void compaction_sub_post(){
 }
 
 void htable_checker(htable *table){
-	for(uint32_t i=0; i<LSP.KEYNUM; i++){
-		if(table->sets[i].ppa<512 && table->sets[i].ppa!=0){
-			printf("here!!\n");
-		}
-	}
+	printf("should edit this!!\n");
+	abort();
+//	for(uint32_t i=0; i<LSP.KEYNUM; i++){
+//		if(table->sets[i].ppa<512 && table->sets[i].ppa!=0){
+//			printf("here!!\n");
+//		}
+//	}
 }
 
 bool compaction_init(){

@@ -149,6 +149,7 @@ skiplist *skiplist_merge(skiplist *src,skiplist *des);
 snode *skiplist_insert_wP(skiplist*,KEYT,ppa_t,bool);//with ppa;
 snode *skiplist_insert_wP_gc(skiplist*,KEYT,char *value, uint32_t *time, uint16_t len,bool);//with ppa;
 snode *skiplist_insert_existIgnore(skiplist *, KEYT,ppa_t,bool isvalid); //insert skiplist, if key exists, input data be ignored
+snode *skiplist_insert_data_existIgnore(skiplist *, KEYT key,uint32_t data_len, char *data, ppa_t ppa, bool isvalid);
 value_set **skiplist_make_valueset(skiplist*,struct level *from, KEYT *start, KEYT *end);
 snode *skiplist_general_insert(skiplist*,KEYT,void *,void (*overlap)(void*));
 snode *skiplist_pop(skiplist *);

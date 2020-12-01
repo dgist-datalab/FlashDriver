@@ -20,11 +20,11 @@ uint8_t gc_data_issue_transaction(struct gc_node *g){
 	else{
 		trp=(t_rparams*)g->params;
 		entry_set=trp->entry_set;
-		keyset *sets=ISNOCPY(LSM.setup_values) ? (keyset*)nocpy_pick(trp->ppa)
-			: (keyset*)trp->value->value;
-		keyset *find=LSM.lop->find_keyset((char*)sets, g->lpa);
-		if(find){
-			if(find->ppa==g->ppa){	//should move!
+		char *sets=ISNOCPY(LSM.setup_values) ? nocpy_pick(trp->ppa)
+			: trp->value->value;
+		map_entry find=LSM.lop->find_map_entry((char*)sets, g->lpa);
+		if(find.type!=INVALIDENT){
+			if(find.info.ppa==g->ppa){	//should move!
 				printf("%s:%d should I implemnt it?\n",__FILE__,__LINE__);
 				abort();
 			}else{

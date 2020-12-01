@@ -353,6 +353,13 @@ bool write_buffer_insert_KV(KBM *kbm, uint32_t tid, snode *kv_pair, bool isdelet
 			printf("break!\n");
 		}
 	}*/
+#ifdef META_UNSEP
+	/*checking unseparated KV*/
+	if(kv_pair->key.key[0]=='m'){
+		return false;
+	}
+#endif
+
 	bool res=false;
 	if(isdelete){
 	
@@ -618,12 +625,12 @@ void write_buffer_free(KBM *kbm){
 void write_buffre_force_flush_anyway(KBM *kbm){
 	snode_bucket *bc;
 	if(kbm->data_bucket_list->size){
-		bc=(snode_bucket*)kbm->data_bucket_list->head->data();
+		bc=(snode_bucket*)kbm->data_bucket_list->head->data;
 		write_buffer_force_flush(kbm, bc->tid, NULL);
 	}
 
 	if(kbm->meta_bucket_list->size){
-		bc=(snode_bucket*)kbm->meta_bucket_list->head->data();
+		bc=(snode_bucket*)kbm->meta_bucket_list->head->data;
 		write_buffer_force_flush(kbm, bc->tid, NULL);
 	}
 	return;

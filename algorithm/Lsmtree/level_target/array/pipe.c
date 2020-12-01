@@ -17,7 +17,7 @@ p_body *pbody_init(char **data,uint32_t size, pl_run *pl_datas, bool read_from_r
 		res->filter=filter;
 	}
 #endif
-	res->prev_check.len=0;
+	res->prev_pent.type=INVALIDENT;
 	return res;
 }
 
@@ -50,7 +50,7 @@ void new_page_set(p_body *p, bool iswrite){
 }
 
 extern bool amf_debug_flag;
-KEYT pbody_get_next_key(p_body *p, uint32_t *ppa){
+p_entry pbody_get_next_pentry(p_body *p){
 	if((!p->now_page && p->pidx<p->max_page) || (p->pidx<p->max_page && p->kidx>p->max_key)){
 		new_page_set(p,false);
 	}
@@ -59,43 +59,61 @@ KEYT pbody_get_next_key(p_body *p, uint32_t *ppa){
 		p->kidx=1;
 	}
 
-	KEYT res={0,};
+	p_entry res={0,};
 	if(p->pidx>=p->max_page && p->kidx>p->max_key){
-		res.len=-1;
+		res.key.len=-1;
 		return res;
 	}
-	if(amf_debug_flag){;
-	//	static int cnt=0; 
-	//	printf("amf debug cnt:%d\n",cnt++);
+
+	char* data=&p->now_page[p->bitmap_ptr[p->kidx]];
+	uint32_t data_idx=1;
+	res.type=data[0];
+	switch(res.type){
+		case KVSEP:
+			memcpy(&res.info.ppa,&data[data_idx],sizeof(uint32_t)); 
+			data_idx+=sizeof(uint32_t);
+			res.key.len=p->bitmap_ptr[p->kidx+1]-p->bitmap_ptr[p->kidx]-sizeof(uint32_t)-1;
+			res.key.key=&data[data_idx];
+			break;
+		case KVUNSEP:
+			memcpy(&res.info.v_len,&data[data_idx],sizeof(uint32_t));
+			data_idx+=sizeof(uint32_t);
+			res.data=&data[data_idx];
+			data_idx+=res.info.v_len;
+
+			res.key.len=p->bitmap_ptr[p->kidx+1]-p->bitmap_ptr[p->kidx]-sizeof(uint32_t)-1-res.info.v_len;
+			res.key.key=&data[data_idx];
+			break;
+		default:
+			printf("unknown type! %s:%d\n", __FILE__, __LINE__);
+			abort();
+			break;
 	}
-	memcpy(ppa,&p->now_page[p->bitmap_ptr[p->kidx]],sizeof(uint32_t));
-	res.len=p->bitmap_ptr[p->kidx+1]-p->bitmap_ptr[p->kidx]-sizeof(uint32_t);
-	res.key=&p->now_page[p->bitmap_ptr[p->kidx]+sizeof(uint32_t)];
+
 	p->kidx++;
 	return res;
 }
 
 bool test_flag;
-char *pbody_insert_new_key(p_body *p,KEYT key, uint32_t ppa, bool flush)
+char *pbody_insert_new_pentry(p_body *p, p_entry pent, bool flush)
 {
 	if(!flush){
-		if(!p->prev_check.len){
-			p->prev_check=key;
-			p->prev_ppa=ppa;
+		if(p->prev_pent.type==INVALIDENT){
+			p->prev_pent=pent;
 		}
 		else{
 			static int cnt=0;
-			if(KEYCMP(p->prev_check, key) >=0){
-				printf("order is failed! %d %.*s~%.*s\n", cnt++, KEYFORMAT(p->prev_check), KEYFORMAT(key));
+			if(KEYCMP(p->prev_pent.key, pent.key) >=0){
+				printf("order is failed! %d %.*s~%.*s\n", cnt++, KEYFORMAT(p->prev_pent.key), KEYFORMAT(pent.key));
 				abort();
 			}
-			p->prev_check=key;
-			p->prev_ppa=ppa;
+			p->prev_pent=pent;
 		}
 	}
 
 	char *res=NULL;
-	if((flush && p->kidx>1) || !p->now_page || p->kidx>=(PAGESIZE-1024)/sizeof(uint16_t)-2 || p->length+(key.len+sizeof(uint32_t))>PAGESIZE){
+	if((flush && p->kidx>1) || !p->now_page || p->kidx>=(PAGESIZE-1024)/sizeof(uint16_t)-2 || 
+			(p->length+(pent.key.len+sizeof(uint32_t)+pent.type==KVSEP?0:pent.info.v_len))>PAGESIZE){
 		if(p->now_page){
 			p->bitmap_ptr[0]=p->kidx-1;
 			p->bitmap_ptr[p->kidx]=p->length;
@@ -108,16 +126,36 @@ char *pbody_insert_new_key(p_body *p,KEYT key, uint32_t ppa, bool flush)
 		new_page_set(p,true);
 	}
 
-	char *target_idx=&p->now_page[p->length];
-	memcpy(target_idx,&ppa,sizeof(uint32_t));
-	memcpy(&target_idx[sizeof(uint32_t)],key.key,key.len);
+	char *target=&p->now_page[p->length];
+	uint32_t added_length=0;
+	switch(pent.type){
+		case KVSEP:
+			target[added_length++]=KVSEP;
+			memcpy(&target[added_length],&pent.info.ppa,sizeof(uint32_t));
+			added_length+=sizeof(uint32_t);
+			memcpy(&target[added_length],pent.key.key,pent.key.len);
+			added_length+=pent.key.len;
+			break;
+		case KVUNSEP:
+			target[added_length++]=KVUNSEP;
+			memcpy(&target[added_length],&pent.info.v_len,sizeof(uint32_t));
+			added_length+=sizeof(uint32_t);
+			memcpy(&target[added_length],pent.data, pent.info.v_len);
+			added_length=pent.info.v_len;
+			memcpy(&target[added_length],pent.key.key,pent.key.len);
+			added_length+=pent.key.len;
+			break;
+		default:	
+			printf("unknown type! %s:%d\n", __FILE__, __LINE__);
+			abort();
+	}
 
 	p->bitmap_ptr[p->kidx++]=p->length;
-	p->length+=sizeof(uint32_t)+key.len;
+	p->length+=added_length;
 
 #ifdef BLOOM
 	if(p->filter)
-		bf_set(p->filter,key);
+		bf_set(p->filter,pent.key);
 #endif
 	return res;
 }

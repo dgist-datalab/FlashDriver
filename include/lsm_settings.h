@@ -9,6 +9,7 @@
 #ifdef KVSSD
 #define KEYBITMAP 1024
 #define TOMBSTONE (UINT32_MAX-2)
+#define NOVALUE (UINT32_MAX-3)
 #endif
 
 #define RAF 1
@@ -49,9 +50,11 @@
 #define MAXKEYSIZE 255
 #define THREADCOMPACTION 4
 //#define CACHEFILETEST "cache_test_file.temp"
+/*
 #define DELTACOMP	1
 #define LZ4			2
-#define COMPRESSEDCACHE DELTACOMP
+#define COMPRESSEDCACHE DELTACOMP*/
+#define META_UNSEP
 
 /*compaction*/
 #define MAXITER 16

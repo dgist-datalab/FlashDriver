@@ -24,13 +24,21 @@ typedef enum{
 
 typedef struct skiplist skiplist;
 
-typedef struct keyset{
+typedef union data_info{
 	ppa_t ppa;
-	KEYT lpa;
-}keyset;
+	uint32_t v_len;
+}data_info;
+
+typedef struct map_entry{
+	uint8_t type;
+	KEYT key;
+	data_info info;
+	char *data;
+}map_entry;
 
 typedef struct htable{
-	keyset *sets;
+	//keyset *sets;
+	char *sets;
 	//	uint8_t *bitset;
 	uint8_t iscached;//for compaction(partial_leveling)
 	/*
@@ -49,7 +57,8 @@ typedef struct htable{
 }htable;
 
 typedef struct htable_t{
-	keyset sets[PAGESIZE/KEYSETSIZE];
+//	keyset sets[PAGEISZE/KEYSETSIZE];
+	char sets[PAGESIZE];
 	char *nocpy_table;
 	value_set *origin;
 }htable_t;
@@ -98,9 +107,9 @@ typedef struct lev_iter{
 	void *iter_data;
 }lev_iter;
 
-typedef struct keyset_iter{
+typedef struct map_entry_iter{
 	void *private_data;
-}keyset_iter;
+}map_entry_iter;
 
 typedef struct trivial_move_container{
 	bool isupper;
@@ -114,10 +123,10 @@ typedef struct level_ops{
 	void (*release)( level*);
 	run_t* (*insert)( level* des, run_t *r);
 	void (*lev_copy)(level *des, level *src);
-	keyset *(*find_keyset)(char *data,KEYT lpa);//find one
+	map_entry (*find_map_entry)(char *data,KEYT lpa);//find one
 	uint32_t (*find_idx_lower_bound)(char *data,KEYT lpa);
-	void (*find_keyset_first)(char *data,KEYT *des);
-	void (*find_keyset_last)(char *data,KEYT *des);
+	void (*find_first_key)(char *data,KEYT *des);
+	void (*find_last_key)(char *data,KEYT *des);
 	bool (*full_check)( level*);
 	void (*tier_align)( level*);
 	void (*move_heap)( level* des,  level *src);
@@ -134,8 +143,6 @@ typedef struct level_ops{
 	uint32_t (*get_max_table_entry)();
 	uint32_t (*get_max_flush_entry)(uint32_t);
 
-	keyset_iter *(*keyset_iter_init)(char *keyset_data, int from);
-	keyset *(*keyset_iter_nxt)(keyset_iter*,keyset *target);
 	/*compaciton operation*/
 #ifdef BLOOM
 	htable* (*mem_cvt2table)(skiplist *,run_t *,BF *);
@@ -181,16 +188,13 @@ typedef struct level_ops{
 
 	void (*range_update)(level *,run_t*,KEYT);
 	int (*cache_comp_formatting)(level *,run_t ***,bool isnext_cache);
-	keyset_iter* (*header_get_keyiter)(level *, char *, KEYT *);
-	keyset (*header_next_key)(level *, keyset_iter *);
-	void (*header_next_key_pick)(level *, keyset_iter *, keyset *);
 #ifdef KVSSD
 	KEYT *(*get_lpa_from_data)(char *data,ppa_t simul_ppa, bool isheader);
 #endif
 	
 	uint32_t (*get_level_mem_size)(level *);
 	/*for debugging*/
-	void (*checking_each_key)(char *data,void*(*test)(KEYT a,ppa_t ppa));
+	void (*checking_each_key)(char *data, void*(*test)(map_entry ent));
 	void (*check_order)(level *);
 	void (*print)( level*);
 	void (*print_run)(run_t *);

@@ -59,6 +59,10 @@ enum LSMTYPE{
 	NOUSE,ONLYCACHE,FIXEDFILTER,ONLYFILTER,ONLYFIXEDFILTER,PINASYM,LASTFILTER
 };
 
+enum METAENTRYTYPE{
+	INVALIDENT, KVSEP, KVUNSEP,
+};
+
 #ifdef MULTILEVELREAD
 enum GETREQTYPE{
 	GET_INIT,GET_DONE
@@ -271,7 +275,7 @@ uint32_t lsm_remove(request *const);
 uint32_t lsm_wait_bg_jobs();
 
 uint32_t __lsm_get(request *const);
-uint8_t lsm_find_run(KEYT key, run_t **,run_t *,struct keyset **, uint32_t *ppa, int *level, int *run, rwlock **);
+uint8_t lsm_find_run(KEYT key, run_t **,run_t *,struct map_entry *, uint32_t *ppa, int *level, int *run, rwlock **);
 uint32_t __lsm_range_get(request *const);
 
 void* lsm_end_req(struct algo_req*const);
@@ -297,7 +301,7 @@ level *lsm_level_resizing(level *target, level *src);
 KEYT* lsm_simul_get(ppa_t ppa); //copy the value
 void lsm_simul_del(ppa_t ppa);
 float diff_get_sizefactor(uint32_t keynum_in_header);
-int __lsm_get_sub(request *req,run_t *entry, keyset *table,skiplist *list, int idx);
+int __lsm_get_sub(request *req,run_t *entry, char *table,skiplist *list, int idx);
 void *testing(KEYT a, ppa_t ppa);
 bool lsm_should_flush(skiplist *mem, __segment *seg);
 bool lsm_block_aligning(uint32_t try_page_num, bool isgc);
