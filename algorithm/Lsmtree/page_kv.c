@@ -61,7 +61,7 @@ int gc_header(){
 	}
 	if(tseg->blocks[0]->block_num==map_m.active->blocks[0]->block_num){
 		free(map_m.active);
-	//	printf("tseg, reserve to active\n");
+		printf("tseg, reserve to active\n");
 		map_m.active=map_m.reserve;
 		map_m.reserve=NULL;
 	}
@@ -84,6 +84,7 @@ int gc_header(){
 	}
 	gc_general_waiting();
 
+	//printf("\tvalid cnt:%d\n", i++);
 	i=0;
 	uint32_t invalidate_cnt=0;
 	for_each_page_in_seg(tseg,tpage,bidx,pidx){

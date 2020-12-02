@@ -126,12 +126,19 @@ void tp_print(tp *t){
 #endif
 	}
 	else{
-	//	printf("[%d] isdummy\n", t->idx);
+#ifdef KOO
+		char buf[4][100];
+		key_interpreter(__extract_start_key(t->u_data[0]), buf[0]);
+		key_interpreter(__extract_end_key(t->u_data[0]), buf[1]);
+		printf("[%d] isdummy %s~%s\n", t->idx, buf[0], buf[1]);
+#endif
 	}
 }
 
 void tp_check_sanity(tp **_t, int num){
-	KEYT pe,ns;
+	KEYT ps, pe, ns, ne;
+
+	//internal o_data check!!!
 	for(int i=0; i<num-1; i++){
 		if(_t[i]->isdummy || _t[i+1]->isdummy) continue;
 		tp *t=_t[i];
@@ -142,6 +149,39 @@ void tp_check_sanity(tp **_t, int num){
 		if(KEYCMP(pe, ns) >=0){
 			printf("sanity failed %s:%d\n", __FILE__, __LINE__);
 			abort();
+		}
+	}
+	//external o_data check!!!
+	for(int i=0; i<num-1; i++){
+		if(_t[i]->isdummy || _t[i+1]->isdummy) continue;
+		tp *t=_t[i]; tp *tn=_t[i+1];
+		ps=__extract_start_key(t->o_data[0]);
+		pe=__extract_start_key(t->o_data[t->o_num-1]);
+		ns=__extract_start_key(tn->o_data[0]);
+		ne=__extract_start_key(tn->o_data[tn->o_num-1]);
+
+		if(KEYCMP(pe,ns)>=0){
+			printf("tpp idx:%d~%d\n", i, i+1);
+			printf("sanity failed %s:%d\n", __FILE__, __LINE__);
+			abort();	
+		}
+	}
+	//u_data check!!!
+	for(int i=0; i<num-1; i++){
+		//if(_t[i]->isdummy || _t[i+1]->isdummy) continue;
+		tp *t=_t[i]; tp *tn=_t[i+1];
+		ps=__extract_start_key(t->u_data[0]);
+		pe=__extract_start_key(t->u_data[0]);
+		ns=__extract_start_key(tn->u_data[0]);
+		ne=__extract_start_key(tn->u_data[0]);
+
+		if(KEYCMP(pe,ns)>=0){
+			char buf[2][100];
+			key_interpreter(pe, buf[0]);
+			key_interpreter(ns, buf[1]);
+			printf("tpp idx:%d~%d pe:%s ns:%d\n", i, i+1, buf[0], buf[1]);
+			printf("sanity failed %s:%d\n", __FILE__, __LINE__);
+			abort();	
 		}
 	}
 }
@@ -309,7 +349,7 @@ retry:
 		return NULL;
 	}
 	else{
-		temp_func(data, d, false);
+		//temp_func(data, d, false);
 	}
 	//array_header_print(data);
 	//printf("head %d %dprint, %d %d\n", cnt++, rp->pidx,params_max, params_idx);
@@ -343,23 +383,27 @@ void array_thread_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct
 #ifdef BLOOM
 	t_fpr=d->fpr;
 #endif
-	
-	//static int cnt=0;
-	//bool debug=false;
+	bool debug=false;
 	/*
+	static int cnt=0;
+	
 	printf("mg cnt:%d\n", cnt++);
-	if(cnt==44){
+	if(cnt==17563+1){
 		debug=true;
 		printf("break!\n");
 	}*/
 
 	for(int i=0; s[i]!=NULL; i++) u_num++;
 	u_data=(char**)malloc(sizeof(char*)*u_num);
-	//printf("upper print\n");
+	if(debug){
+		printf("upper print\n");
+	}
 	for(int i=0; i<u_num; i++) {
 		u_data[i]=data_from_run(s[i]);
-	//	header_start_end_print(u_data[i], i);
-		temp_func(u_data[i], d, true);
+		if(debug){	
+			header_start_end_print(u_data[i], i);
+		}
+	//	temp_func(u_data[i], d, true);
 		if(!u_data[i]) abort();
 	}
 
@@ -369,14 +413,18 @@ void array_thread_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct
 
 	for(int i=0;o[i]!=NULL ;i++) o_num++;
 	char **o_data=(char**)malloc(sizeof(char*)*o_num);
-//	printf("lower print\n");
+	if(debug){
+		printf("lower print\n");
+	}
 	for(int i=0; o[i]!=NULL; i++){ 
 		o_data[i]=data_from_run(o[i]);
-		//header_start_end_print(o_data[i], i);
+		if(debug){
+			header_start_end_print(o_data[i], i);
+		}
 		//printf("lower:%d\n",i);
 		//array_header_print(o_data[i]);
 
-		temp_func(o_data[i], d, true);
+		//temp_func(o_data[i], d, true);
 	//	printf("lower %d\n", i);
 	//	array_header_print(o_data[i]);
 		if(!o_data[i]) abort();
@@ -399,6 +447,9 @@ void array_thread_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct
 	array_print(LSM.disk[d->idx]);
 */
 	for(uint32_t i=0; i<u_num; i++){
+		if(debug && (tp_num==5)){
+			printf("break!\n");
+		}
 		if(i==u_num-1){
 			end_boundary=o_num-prev_consume_num-1;
 			next_boundary=end_boundary+1;
@@ -418,18 +469,23 @@ make_params:
 		if(end_boundary==-1){ //-1==no data or before data
 			real_bound=prev_consume_num+end_boundary;
 			if(splited_data){
-				if(tp_num>=(u_num+2)){
-					printf("break!!\n");
-				}
 				switch(__header_overlap_chk(u_data[i],splited_data)){
 					case 1://no overlap: [splited_data] [u_data[i]]
 						tpp[tp_num]=init_dummy_thread_params(1, splited_data, d, tp_num);
+						if(debug){
+							tp_print(tpp[tp_num]);
+						}
 						tp_num++;
 						LMI.move_run_cnt++;
+						splited_data=NULL;
 						issplit_start=false;
+						//should do next step;
 					case -1: //no overlap :[u_data[i]] [splited_data]
 						num=0;
 						tpp[tp_num]=init_dummy_thread_params(1, u_data[i], d, tp_num);
+						if(debug){
+							tp_print(tpp[tp_num]);
+						}
 						LMI.move_run_cnt++;
 						goto next_round;
 					case 0: //overlap splited data
@@ -440,6 +496,9 @@ make_params:
 			else{
 				num=0;
 				tpp[tp_num]=init_dummy_thread_params(1, u_data[i], d, tp_num);
+				if(debug){
+					tp_print(tpp[tp_num]);
+				}
 				LMI.move_run_cnt++;
 				goto next_round;
 			}
@@ -457,6 +516,7 @@ make_params:
 		if(issplit_start){
 			target_data_set[t_data_num++]=splited_data;
 			issplit_start=false;
+			//splited_data=NULL;
 		}
 
 		if(end_boundary!=-1 && end_boundary==next_boundary){
@@ -484,6 +544,9 @@ make_params:
 
 		tpp[tp_num]->o_num=t_data_num;
 		LMI.compacting_run_cnt+=t_data_num+1;
+		if(debug){
+			tp_print(tpp[tp_num]);
+		}
 		thpool_add_work(pool, __pipe_merger, (void*)tpp[tp_num]);
 next_round:
 		tp_num++;
@@ -491,19 +554,22 @@ next_round:
 	
 	if(issplit_start){
 		tpp[tp_num]=init_dummy_thread_params(1, splited_data, d, tp_num);
+		if(debug){
+			tp_print(tpp[tp_num]);
+		}
 		tp_num++;
 		LMI.move_run_cnt++;
 		issplit_start=false;
 	}
 
-	//tp_check_sanity(tpp, tp_num);
 	
-	//if(debug){
-	/*
-	for(int i=0; i<tp_num; i++){
-		tp_print(tpp[i]);
-	}*/
-	//}
+	if(debug){
+		for(int i=0; i<tp_num; i++){
+			tp_print(tpp[i]);
+		}
+	}
+	
+	//tp_check_sanity(tpp, tp_num);
 
 
 //	exit(1);

@@ -66,4 +66,5 @@ void seq_mh_swap_hptr(void *a, void *b);
 void seq_mh_assign_hptr(void *a, void *hn);
 int seq_get_cnt(void *a);
 
+
 #endif

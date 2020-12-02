@@ -158,12 +158,20 @@ __segment* seq_change_pt_reserve(struct blockmanager *bm,int pt_num, __segment *
 	}
 	return seq_pt_get_segment(bm, pt_num, true);
 }
-
 uint32_t seq_pt_reserve_to_free(struct blockmanager* bm, int pt_num, __segment *reserve){
 	sbm_pri *p=(sbm_pri*)bm->private_data;
-	__block *b=NULL;
-	uint32_t idx=0;
+	volatile __block *b=NULL;
+	volatile uint32_t idx=0;
+	if(!reserve){
+		printf("reserve null!!!\n");
+		abort();
+	}
 	for_each_block(reserve, b, idx){
+		if(!b){
+			printf("block null!!\n");
+			abort();
+		}
+		//printf("[%d] b->invalid_number:%d\n", idx, b->invalid_number);
 		if(b->invalid_number){
 			printf("it can't have invalid_number\n");
 			abort();

@@ -534,6 +534,8 @@ bool page_check_available(uint8_t type, uint32_t needed_page){
 	}
 	uint32_t res=bm->pt_remain_page(bm,t->active,MAP_S);
 	if(res<needed_page){
+	//	static int cnt=0;
+	//	printf("[%d]gc header :%d\n", cnt++,needed_page);
 retry:
 		int t_res;
 		if(type==HEADER) t_res=gc_header();

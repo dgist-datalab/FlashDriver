@@ -23,7 +23,7 @@ DEBUGFLAGS=\
 			-rdynamic\
 			-Wno-pointer-arith\
 			-g\
--fsanitize=address\
+#-fsanitize=address\
 #	-DBUSE_DEBUG
 
 export COMMONFLAGS=\
@@ -39,15 +39,16 @@ export COMMONFLAGS=\
 			-DKOO\
 			-DCHECKINGTIME\
 			-DCHECKINGDATA\
+			-O3 -march=native -mtune=native -flto=20 \
 #			-DDEBUG\
 #			-march=armv8-a+crypto\
-			-O3 -march=native -mtune=native -flto=20 \
 
 COMMONFLAGS+=$(DEBUGFLAGS)\
 
 export CFLAGS_ALGO=\
 			 -fPIC\
 			 -Wall\
+			 -g\
 			 -D$(TARGET_LOWER)\
 		 -DDVALUE\
 
@@ -186,7 +187,7 @@ jni: libdriver.a ./jni/DriverInterface.c
 libfdsock.a:
 	cd ./include/flash_sock/ && $(MAKE) libfdsock.a && mv ./libfdsock.a ../../ && cd ../../
 
-libdriver.a: $(TARGETOBJ)
+libdriver.a: $(TARGETOBJ) blockmanager/sequential/seq_pt_non_opt.c
 	mkdir -p object && mkdir -p data
 	cd ./blockmanager/$(TARGET_BM) && $(MAKE) && cd ../../
 	cd ./algorithm/$(TARGET_ALGO) && $(MAKE) clean && $(MAKE) && cd ../../
@@ -195,6 +196,7 @@ libdriver.a: $(TARGETOBJ)
 	mv -f ./blockmanager/*.o ./object/
 	mv ./include/utils/*.o ./object/
 	mv ./interface/*.o ./object/ && mv ./bench/*.o ./object/ && mv ./include/*.o ./object/
+#$(CC) -c ./blockmanager/sequential/seq_pt_non_opt.c -o ./object/seq_pt_non_opt.o
 	$(AR) r $(@) ./object/*
 
 %_mem.o: %.c

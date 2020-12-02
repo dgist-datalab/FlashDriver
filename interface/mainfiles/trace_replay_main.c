@@ -155,7 +155,7 @@ int main(int argc,char* argv[]){
 	sigaction(SIGINT, &sa, NULL);
 	printf("signal add!\n");
 	inf_init(1,0,argc,argv);
-	FILE *f=fopen("/home/koo/trace_data2", "r");
+	FILE *f=fopen("/home/kukania/trace_data2", "r");
 	if(!f){
 		printf("file open error!\n");
 		return 0;

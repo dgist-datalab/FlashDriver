@@ -73,20 +73,20 @@ bool level_sequential(level *from, level *to,level *des, run_t *entry,leveling_n
 
 	//}
 	if(to->n_num>0 && LSM.lop->chk_overlap(to,start,end)) return false;
-
-	if(to->n_num){
-		printf("break to->idx:%d!\n", to->idx);
-		char buf[100];
-		key_interpreter(start,buf);
-		printf("upper start:%s\n", buf);
-		key_interpreter(end,buf);
-		printf("upper end:%s\n", buf);
-
-		key_interpreter(to->start,buf);
-		printf("lower start:%s\n", buf);
-		key_interpreter(to->end,buf);
-		printf("lower end:%s\n", buf);
-	}
+//
+//	if(to->n_num){
+//		printf("break to->idx:%d!\n", to->idx);
+//		char buf[100];
+//		key_interpreter(start,buf);
+//		printf("upper start:%s\n", buf);
+//		key_interpreter(end,buf);
+//		printf("upper end:%s\n", buf);
+//
+//		key_interpreter(to->start,buf);
+//		printf("lower start:%s\n", buf);
+//		key_interpreter(to->end,buf);
+//		printf("lower end:%s\n", buf);
+//	}
 	bool target_processed=false;
 	if(KEYCMP(to->start,end)<0){
 		target_processed=true;
@@ -130,10 +130,11 @@ bool level_sequential(level *from, level *to,level *des, run_t *entry,leveling_n
 
 bool amf_debug_flag;
 uint32_t leveling(level *from,level *to, leveling_node *l_node,rwlock *lock){
+	
 	static int cnt=0;
 	cnt++;
 	if(cnt==360703){
-		printf("break!\n");
+	//	printf("break!\n");
 	}
 	//printf("leveling cnt:%d\n", cnt);
 	if(from && from->n_num>from->m_num){
@@ -242,7 +243,7 @@ last:
 	//LSM.lop->print_level_summary();
 	//LSM.li->lower_flying_req_wait();
 
-	LSM.lop->check_order(target);
+	//LSM.lop->check_order(target);
 	return res;
 }
 

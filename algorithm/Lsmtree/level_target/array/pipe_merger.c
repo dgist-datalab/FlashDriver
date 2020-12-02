@@ -49,9 +49,6 @@ char *array_skip_cvt2_data(skiplist *mem){
 
 		bitmap[idx]=data_start;
 		data_start+=added_length;
-		if(added_length==156){
-			abort();
-		}
 		idx++;
 	}
 	bitmap[idx]=data_start;
@@ -93,7 +90,7 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 	//printf("cnt:%d\n", cnt++);
 	bool debug=false;
 	if(cnt==6399){
-		debug=true;
+//		debug=true;
 	}
 	cutter_start=true;
 	int o_num=0; int u_num=0;
@@ -105,7 +102,7 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 		u_num=1;
 		u_data=(char**)malloc(sizeof(char*)*u_num);
 		u_data[0]=array_skip_cvt2_data(mem);
-		temp_func(u_data[0],d,true);
+		//temp_func(u_data[0],d,true);
 	}
 	else{
 		for(int i=0; s[i]!=NULL; i++) u_num++;
@@ -113,10 +110,7 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 		for(int i=0; i<u_num; i++) {
 			u_data[i]=data_from_run(s[i]);
 			if(!u_data[i]) abort();
-			temp_func(u_data[i],d,true);
-			if((i>345 && i<355) && debug){
-				array_header_print(u_data[i]);
-			}
+		//	temp_func(u_data[i],d,true);
 		}
 	}
 
@@ -125,7 +119,7 @@ void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level*
 	for(int i=0; o[i]!=NULL; i++){ 
 		o_data[i]=data_from_run(o[i]);
 		if(!o_data[i]) abort();
-		temp_func(o_data[i],d,true);
+		//temp_func(o_data[i],d,true);
 	}
 
 
@@ -293,7 +287,7 @@ run_t *array_pipe_cutter(struct skiplist* mem, struct level* d, KEYT* _start, KE
 		pbody_clear(rp);
 		return NULL;
 	}
-	temp_func(data,d,false);
+	//temp_func(data,d,false);
 
 	return array_pipe_make_run(data,d->idx);
 }

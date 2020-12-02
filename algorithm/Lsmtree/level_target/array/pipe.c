@@ -106,13 +106,14 @@ char *pbody_insert_new_pentry(p_body *p, p_entry pent, bool flush)
 		}
 		else{
 			static int cnt=0;
+			/*
 			if(KEYCMP(p->prev_pent.key, pent.key) >=0){
 				char buf1[100], buf2[100];
 				key_interpreter(p->prev_pent.key, buf1);
 				key_interpreter(pent.key, buf2);
 				printf("order is failed! %d %s~%s\n", cnt++, buf1, buf2);
 				abort();
-			}
+			}*/
 			p->prev_pent=pent;
 		}
 	}
