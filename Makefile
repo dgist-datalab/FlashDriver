@@ -163,6 +163,7 @@ driver: ./interface/transaction_main.c libdriver.a
 
 trace_driver: ./interface/mainfiles/trace_replay_main.c libdriver.a
 	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)
+	sync
 
 koo_kv_driver: ./interface/mainfiles/koo_kv_main.c libdriver.a
 	$(CC) $(CFLAGS) -o $@ $^ $(ARCH) $(LIBS)

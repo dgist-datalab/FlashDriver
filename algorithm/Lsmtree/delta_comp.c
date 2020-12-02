@@ -124,8 +124,6 @@ uint32_t delta_compression_comp(char *src, char *des){
 
 	map_entry ment;
 	for_each_header_start(idx,ment,bitmap,body)
-		printf("should revised!!!!\n");
-		abort();
 		nxt_cnt++;
 		if(cm.now_body_idx>8192){
 			printf("over data file!!\n");
@@ -184,25 +182,29 @@ static inline void decompress_master_init(decompress_master *dm, char *des){
 
 static inline void decompress_insert_key_ppa(decompress_master *dm, KEYT key, KEYT delta, uint32_t ppa, uint32_t type){
 	uint16_t add_length=0;
-	memcpy(&dm->ptr[dm->data_start], &ppa, sizeof(ppa));
+	if(key.key[0]=='m'){
+		abort();
+	}
+	dm->ptr[dm->data_start]=KVSEP;
+	memcpy(&dm->ptr[dm->data_start+1], &ppa, sizeof(ppa));
 	if(delta.len){
-		memcpy(&dm->ptr[dm->data_start+sizeof(ppa)], key.key, 9);
+		memcpy(&dm->ptr[dm->data_start+sizeof(ppa)+1], key.key, 9);
 		if(type==DATACOMPSET){
 			uint64_t value=extract_block_num(key);
 			data_delta_t delta_value=(*(data_delta_t*)delta.key);
 			value+=delta_value;
 			value=Swap8Bytes(value);
-			memcpy(&dm->ptr[dm->data_start+sizeof(ppa)+9], &value, sizeof(uint64_t));
+			memcpy(&dm->ptr[dm->data_start+sizeof(ppa)+9+1], &value, sizeof(uint64_t));
 			add_length+=9+sizeof(uint64_t)+sizeof(ppa);
 		}
 		else{
-			memcpy(&dm->ptr[dm->data_start+sizeof(ppa)+9], delta.key, delta.len);
-			add_length+=9+delta.len+sizeof(ppa);
+			memcpy(&dm->ptr[dm->data_start+sizeof(ppa)+9+1], delta.key, delta.len);
+			add_length+=9+delta.len+sizeof(ppa)+1;
 		}
 	}
 	else{
-		memcpy(&dm->ptr[dm->data_start+sizeof(ppa)], key.key, key.len);
-		add_length+=key.len+sizeof(ppa);
+		memcpy(&dm->ptr[dm->data_start+sizeof(ppa)+1], key.key, key.len);
+		add_length+=key.len+sizeof(ppa)+1;
 	}
 	
 	dm->bitmap[dm->idx]=dm->data_start;
@@ -280,6 +282,7 @@ uint32_t delta_compression_decomp(char *src, char *des, uint32_t compressed_size
 		}
 	}
 	decompress_finish(&dm);
+	//LSM.lop->header_print(des);
 	return 1;
 }
 

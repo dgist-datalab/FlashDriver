@@ -596,7 +596,6 @@ lev_iter* array_get_iter( level *lev,KEYT start, KEYT end){
 		iter->now=0;
 	}
 	else{
-	//	printf("should do somthing!\n");
 		iter->now=array_bound_search(b->arrs,lev->n_num,start,true);
 		iter->max=array_bound_search(b->arrs,lev->n_num,end,true);
 		iter->ispartial=true;
@@ -931,6 +930,14 @@ void array_check_order(level *lev){
 	for(int i=1; i<lev->n_num; i++){
 		run_t *now=array_get_run_idx(lev,i);
 		if(KEYCMP(bef->end,now->key)>=0){
+			printf("lev idx:%d\n", lev->idx);
+			printf("before\n");
+			array_print_run(bef);
+			printf("now\n");
+			array_print_run(now);
+
+
+			array_print(lev);
 			abort();
 		}
 		bef=now;
@@ -938,7 +945,14 @@ void array_check_order(level *lev){
 }
 
 void array_print_run(run_t * r){
+#ifdef KOO
+	char buf[100], buf2[100];
+	key_interpreter(r->key, buf);
+	key_interpreter(r->end, buf2);
+	printf("%s ~ %s : %d\n",buf, buf2,r->pbn);
+#else
 	printf("%.*s ~ %.*s : %d\n",KEYFORMAT(r->key),KEYFORMAT(r->end),r->pbn);
+#endif
 }
 
 void array_lev_copy(level *des, level *src){

@@ -30,19 +30,14 @@ static void temp_func(char* body, level *d, bool merger){
 	//ppa_t *ppa_ptr;
 	p_entry pent; 
 	for_each_header_start(idx,pent,bitmap,body)
-		if(key_const_compare(pent.key, 'd', 3707, 262149, NULL)){
-			char buf[100];
-			key_interpreter(key, buf);			
-			printf("maybe update type:%d KEY-(%s), ppa:%u ",pent.type, buf,pent.info.ppa);
-			if(key.len==0){
-				printf("error!\n");
-				abort();
-			}
+		if(pent.type!=KVSEP && pent.type!=KVUNSEP){
 			if(merger)
 				printf("insert into %d\n",d->idx);
 			else{
 				printf("cutter %d\n",d->idx);
 			}
+			array_header_print(body);
+			abort();
 		}
 	for_each_header_end
 }
@@ -314,7 +309,7 @@ retry:
 		return NULL;
 	}
 	else{
-		//temp_func(data, d, false);
+		temp_func(data, d, false);
 	}
 	//array_header_print(data);
 	//printf("head %d %dprint, %d %d\n", cnt++, rp->pidx,params_max, params_idx);
@@ -364,7 +359,7 @@ void array_thread_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct
 	for(int i=0; i<u_num; i++) {
 		u_data[i]=data_from_run(s[i]);
 	//	header_start_end_print(u_data[i], i);
-		//temp_func(u_data[i], d, true);
+		temp_func(u_data[i], d, true);
 		if(!u_data[i]) abort();
 	}
 
@@ -381,13 +376,13 @@ void array_thread_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct
 		//printf("lower:%d\n",i);
 		//array_header_print(o_data[i]);
 
-		//temp_func(o_data[i], d, true);
+		temp_func(o_data[i], d, true);
 	//	printf("lower %d\n", i);
 	//	array_header_print(o_data[i]);
 		if(!o_data[i]) abort();
 	}
 
-	tpp=(tp**)malloc(sizeof(tp*)*(u_num+2));
+	tpp=(tp**)malloc(sizeof(tp*)*(u_num*2));
 	int tp_num=0, t_data_num;
 	int prev_consume_num=0;
 	int end_boundary;

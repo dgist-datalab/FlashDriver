@@ -224,7 +224,7 @@ static char *make_rundata_from_snode(snode *temp){
 
 void array_header_print(char *data){
 	int idx;
-	ppa_t *ppa;
+	//ppa_t *ppa;
 	uint16_t *bitmap;
 	char *body;
 #ifdef KOO

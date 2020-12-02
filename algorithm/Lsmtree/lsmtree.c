@@ -735,7 +735,7 @@ uint8_t lsm_find_run(KEYT key, run_t ** entry, run_t *up_entry, map_entry *found
 			if(key.key[0]=='d'){
 				ppa_t compressed_result=lsm_lru_find_cache(LSM.llru, &entries[0], key);
 				if(compressed_result!=UINT32_MAX){
-					found->type=INVALIDENT;
+					found->type=KVSEP;
 					//				(*found)=NULL;
 					(*found_ppa)=compressed_result;
 					rwlock_read_unlock(level_rw_lock);
@@ -1015,9 +1015,10 @@ uint32_t __lsm_get(request *const req){
 	int *temp_data;
 	rparams *rp;
 	//printf("%.*s\n", KEYFORMAT(req->key));
+	/*
 	if(req->key.key[0]=='d'){
 		printf("break!\n");
-	}
+	}*/
 	if(req->params==NULL){
 		if(!ISTRANSACTION(LSM.setup_values)){
 			/*memtable*/
@@ -1123,7 +1124,7 @@ retry:
 				}
 				else if(found.type==KVSEP){
 					lsm_req=lsm_get_req_factory(req,DATAR,level);
-					req->value->ppa=found_ppa==UINT32_MAX?found.info.ppa:found_ppa;
+					req->value->ppa=(found_ppa==UINT32_MAX?found.info.ppa:found_ppa);
 					req->magic=3;
 					temp_data[2]=level;
 					LSM.li->read(CONVPPA(req->value->ppa),PAGESIZE,req->value,ASYNC,lsm_req);

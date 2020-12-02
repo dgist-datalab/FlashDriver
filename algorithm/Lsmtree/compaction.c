@@ -75,7 +75,7 @@ bool level_sequential(level *from, level *to,level *des, run_t *entry,leveling_n
 	if(to->n_num>0 && LSM.lop->chk_overlap(to,start,end)) return false;
 
 	if(to->n_num){
-		printf("break!\n");
+		printf("break to->idx:%d!\n", to->idx);
 		char buf[100];
 		key_interpreter(start,buf);
 		printf("upper start:%s\n", buf);
@@ -85,7 +85,7 @@ bool level_sequential(level *from, level *to,level *des, run_t *entry,leveling_n
 		key_interpreter(to->start,buf);
 		printf("lower start:%s\n", buf);
 		key_interpreter(to->end,buf);
-		printf("lower start:%s\n", buf);
+		printf("lower end:%s\n", buf);
 	}
 	bool target_processed=false;
 	if(KEYCMP(to->start,end)<0){
@@ -132,7 +132,10 @@ bool amf_debug_flag;
 uint32_t leveling(level *from,level *to, leveling_node *l_node,rwlock *lock){
 	static int cnt=0;
 	cnt++;
-	printf("leveling cnt:%d\n", cnt);
+	if(cnt==360703){
+		printf("break!\n");
+	}
+	//printf("leveling cnt:%d\n", cnt);
 	if(from && from->n_num>from->m_num){
 		printf("level exceed max run! %d\n", cnt);
 		abort();
@@ -281,6 +284,7 @@ uint32_t partial_leveling(level* t,level *origin,leveling_node *lnode, level* up
 				src_num=LSM.lop->range_find_compaction(upper,key_min,end,&data);	
 			}
 			des_num=LSM.lop->range_find_compaction(origin,start,key_max,&target_s);//for stream compaction
+		//	des_num=LSM.lop->range_find_compaction(origin,key_min,key_max,&target_s);//for stream compaction
 			if(src_num && des_num == 0 ){
 				if(des_num==0){
 					LSM.lop->print(origin);
@@ -296,9 +300,11 @@ uint32_t partial_leveling(level* t,level *origin,leveling_node *lnode, level* up
 			data[0]=lnode->entry;
 			data[1]=NULL;
 			start=lnode->entry->key;
-			des_num=LSM.lop->range_find_compaction(origin,start,key_max,&target_s);//for stream compaction
+		//	des_num=LSM.lop->range_find_compaction(origin,start,key_max,&target_s);//for stream compaction
+			des_num=LSM.lop->range_find_compaction(origin,key_min,key_max,&target_s);//for stream compaction
 		}
 
+		
 		run_t *r;
 		lev_iter *iter=LSM.lop->get_iter(origin,key_min,start);
 		for_each_lev(r,iter, LSM.lop->iter_nxt){

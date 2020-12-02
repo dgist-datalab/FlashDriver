@@ -90,7 +90,7 @@ void temp_func(char* body, level *d, bool insert){
 extern uint32_t debugging_ppa;
 void array_pipe_merger(struct skiplist* mem, run_t** s, run_t** o, struct level* d){
 	static int cnt=0;
-	printf("cnt:%d\n", cnt++);
+	//printf("cnt:%d\n", cnt++);
 	bool debug=false;
 	if(cnt==6399){
 		debug=true;
@@ -255,7 +255,7 @@ run_t *array_pipe_make_run(char *data,uint32_t level_idx)
 {
 	KEYT start,end;
 	uint16_t *body=(uint16_t*)data;
-	uint32_t num=body[0];
+	//uint32_t num=body[0];
 
 	array_find_first_key(data, &start);
 	array_find_last_key(data, &end);

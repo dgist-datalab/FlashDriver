@@ -286,7 +286,7 @@ uint32_t __lsm_range_get(request *const req){ //after range_get
 	rgparams->read_target_num=rgparams->read_num=0;
 
 	skiplist *temp_list=skiplist_init();
-	snode *tt;
+	//snode *tt;
 	for(int32_t i=rgparams->total_loi_num-1; i>=0; i--){
 		ka_pair t;
 		if(!loi[i]) continue;
