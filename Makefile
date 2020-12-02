@@ -187,7 +187,7 @@ jni: libdriver.a ./jni/DriverInterface.c
 libfdsock.a:
 	cd ./include/flash_sock/ && $(MAKE) libfdsock.a && mv ./libfdsock.a ../../ && cd ../../
 
-libdriver.a: $(TARGETOBJ) blockmanager/sequential/seq_pt_non_opt.c
+libdriver.a: $(TARGETOBJ)
 	mkdir -p object && mkdir -p data
 	cd ./blockmanager/$(TARGET_BM) && $(MAKE) && cd ../../
 	cd ./algorithm/$(TARGET_ALGO) && $(MAKE) clean && $(MAKE) && cd ../../
@@ -196,7 +196,6 @@ libdriver.a: $(TARGETOBJ) blockmanager/sequential/seq_pt_non_opt.c
 	mv -f ./blockmanager/*.o ./object/
 	mv ./include/utils/*.o ./object/
 	mv ./interface/*.o ./object/ && mv ./bench/*.o ./object/ && mv ./include/*.o ./object/
-#$(CC) -c ./blockmanager/sequential/seq_pt_non_opt.c -o ./object/seq_pt_non_opt.o
 	$(AR) r $(@) ./object/*
 
 %_mem.o: %.c

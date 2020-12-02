@@ -105,6 +105,8 @@ void lsm_lru_insert(lsm_lru *llru, run_t *ent, char *data, int level_idx){
 #elif COMPRESSEDCACHE==DELTACOMP
 		target->data->len=delta_compression_comp(data, target->data->buf);
 #endif
+		llru->data_area_origin_length+=PAGESIZE;
+		llru->data_area_compressed_length+=target->data->len;
 	}
 	else{
 		target->data->type=NONCOMPRESSED;

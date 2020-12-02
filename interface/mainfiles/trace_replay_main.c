@@ -307,7 +307,7 @@ bool trace_end_req(request *const req){
 			break;
 		case FS_MGET_T:
 		case FS_GET_T:
-			//map_crc_check(req->key, *(uint32_t*)req->value->value);
+			map_crc_check(req->key, *(uint32_t*)req->value->value);
 			bench_reap_data(req, mp.li);
 			inf_free_valueset(req->value,FS_MALLOC_R);
 			if(req->key.len){
@@ -315,13 +315,13 @@ bool trace_end_req(request *const req){
 			}
 			break;
 		case FS_SET_T:
-			//map_crc_insert(req->temp_key, req->crc_value);
+			map_crc_insert(req->temp_key, req->crc_value);
 			kvssd_free_key_content(&req->temp_key);
 			bench_reap_data(req, mp.li);
 			if(req->value) inf_free_valueset(req->value, FS_MALLOC_W);
 			break;
 		case FS_DELETE_T:
-			//map_crc_insert(req->temp_key, 0);
+			map_crc_insert(req->temp_key, 0);
 			kvssd_free_key_content(&req->temp_key);
 			break;
 		case FS_RMW_T:
@@ -329,7 +329,7 @@ bool trace_end_req(request *const req){
 		case FS_TRANS_COMMIT:
 			break;
 		case FS_RANGEDEL_T:
-			//map_crc_range_delete(req);
+			map_crc_range_delete(req);
 			kvssd_free_key_content(&req->temp_key);
 			break;
 		case FS_RANGEGET_T:

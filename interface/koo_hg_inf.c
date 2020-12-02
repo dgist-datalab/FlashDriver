@@ -578,7 +578,7 @@ bool cheeze_end_req(request *const req){
 		case FS_MGET_T:
 		case FS_GET_T:
 #ifdef CHECKINGDATA
-			map_crc_check(req->key, crc32(req->value->value, req->key.key[0]=='m'?512:LPAGESIZE));
+			map_crc_check(req->key, crc32(req->value->value, req->key.key[0]=='m'?METALEN:LPAGESIZE));
 #endif
 			bench_reap_data(req, mp.li);
 			if(req->value){

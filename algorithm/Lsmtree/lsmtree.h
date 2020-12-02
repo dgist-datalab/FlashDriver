@@ -97,6 +97,7 @@ typedef struct multi_req_params{
 }mreq_params;
 #endif
 
+enum{NOWLEVEL, NOWRUN, ROUND, BYPASS};
 typedef struct req_params{
 	int datas[4];
 	ppa_t ppa;
@@ -200,6 +201,9 @@ typedef struct lsmtree_monitor_info{
 	uint64_t transaction_read_hit;
 	uint64_t read_stall_by_compaction;
 	uint64_t compaction_stall_by_read;
+
+	uint64_t get_meta_flash_read;
+	uint64_t get_data_flash_read;
 }lmi;
 
 /*

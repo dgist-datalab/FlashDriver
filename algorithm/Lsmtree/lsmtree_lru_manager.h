@@ -33,6 +33,8 @@ typedef struct lsm_lru{
 	uint64_t input_length;
 	uint64_t compressed_length;
 	uint32_t cached_entry;
+	uint64_t data_area_origin_length;
+	uint64_t data_area_compressed_length;
 	fdriver_lock_t lock;
 }lsm_lru;
 

@@ -262,7 +262,7 @@ struct blockmanager{
 
 
 #define for_each_block(segs,block,idx)\
-	for(idx=0,block=segs->blocks[idx];idx<BPS; block=(idx+1>=BPS?segs->blocks[BPS-1]:segs->blocks[(++idx)]))
+	for(idx=0,block=segs->blocks[idx];idx<BPS; block=(++idx>=BPS?segs->blocks[BPS-1]:segs->blocks[idx]))
 
 #define for_each_page(blocks,page,idx)\
 	for(idx=0,page=blocks->ppa; idx!=PPB; page++,idx++)
