@@ -139,7 +139,7 @@ uint32_t __lsm_create_normal(lower_info *li, algorithm *lsm){
 	pm_init();
 	compaction_init();
 	if(ISTRANSACTION(LSM.setup_values)){
-		uint32_t remain_memory=transaction_init(LSP.cache_memory)-CQSIZE;
+		uint32_t remain_memory=transaction_init(LSP.cache_memory);
 		if(!bc.full_caching){
 			remain_memory=!remain_memory?1:remain_memory;
 			printf("\t|bitmap_caching memroy:%u\n",bc_used_memory(bc.max)/PAGESIZE);

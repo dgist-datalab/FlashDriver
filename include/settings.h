@@ -44,7 +44,7 @@
 #define MINVALUE PIECE
 #define MINKEYLENGTH 16
 #define DEFKEYLENGTH (20)
-#define DEFVALUESIZE ((4096+512)/2)
+#define DEFVALUESIZE ((4096+512)/4)
 #define LPAGESIZE (4096)
 
 #ifdef MLC
