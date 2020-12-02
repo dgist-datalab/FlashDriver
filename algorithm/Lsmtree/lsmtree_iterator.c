@@ -170,11 +170,10 @@ inline static uint32_t __lsm_range_KV(request *const req, range_get_params *rgpa
 		if(i+1==req->length) {
 			break_flag=true;
 		}
-		if(t_node->ppa==UINT32_MAX){
+		if(t_node->m_entry.type==KVUNSEP){
 			//copy value
 			if(req->buf)
-				copy_key_value_to_buf(&req->buf[offset], t_node->key, t_node->value.g_value);
-			//printf("target %d iter key :%.*s\n", iter_num++,KEYFORMAT(t_node->key));
+				copy_key_value_to_buf(&req->buf[offset], t_node->key, t_node->m_entry.data);
 
 			pthread_mutex_lock(&cnt_lock);
 			rgparams->read_num++;
@@ -197,8 +196,7 @@ inline static uint32_t __lsm_range_KV(request *const req, range_get_params *rgpa
 			}
 			goto next_round;
 		}
-		else if(t_node->ppa==TOMBSTONE){
-
+		else if(t_node->m_entry.type==KVSEP && t_node->m_entry.info.ppa==TOMBSTONE){
 			pthread_mutex_lock(&cnt_lock);
 			req->length=rgparams->read_target_num=rgparams->read_target_num-1;
 			if(rgparams->read_num==rgparams->read_target_num){
@@ -222,7 +220,7 @@ inline static uint32_t __lsm_range_KV(request *const req, range_get_params *rgpa
 		}
 		al_req=(algo_req*)malloc(sizeof(algo_req));
 		al_params=(algo_lsm_range_params*)malloc(sizeof(algo_lsm_range_params));
-		al_req->ppa=t_node->ppa;
+		al_req->ppa=t_node->m_entry.info.ppa;
 		al_req->parents=req;
 		al_req->type=DATAR;
 		al_req->end_req=lsm_range_end_req;
@@ -293,10 +291,13 @@ uint32_t __lsm_range_get(request *const req){ //after range_get
 		ka_pair t;
 		if(!loi[i]) continue;
 		while(level_op_iterator_pick_key_addr_pair(loi[i],&t)){
+			/*
 			tt=skiplist_insert_iter(temp_list, t.key, t.ppa);
 			if(t.ppa==UINT32_MAX){
 				tt->value.g_value=t.data;
-			}
+			}*/
+
+			skiplist_insert_map_entry(temp_list, t.ment.key, t.ment);
 			level_op_iterator_move_next(loi[i]);
 		}
 	}

@@ -48,12 +48,24 @@
 #define RQSIZE 1024
 #define WRITEWAIT
 #define MAXKEYSIZE 255
-//#define THREADCOMPACTION 4
+#define THREADCOMPACTION 4
 //#define CACHEFILETEST "cache_test_file.temp"
-/*
+
 #define DELTACOMP	1
 #define LZ4			2
-#define COMPRESSEDCACHE DELTACOMP*/
+#define COMPRESSEDCACHE DELTACOMP
+
+typedef union data_info{
+	ppa_t ppa;
+	uint32_t v_len;
+}data_info;
+
+typedef struct map_entry{
+	uint8_t type;
+	KEYT key;
+	data_info info;
+	char *data;
+}map_entry;
 #define META_UNSEP
 
 /*compaction*/

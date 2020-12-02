@@ -218,7 +218,8 @@ uint32_t array_get_level_mem_size(level *lev);
 void array_check_order(level *);
 void array_lev_copy(level *des, level *src);
 void array_print_run(run_t * r);
-bool array_level_order_chk(level*);
+//bool array_level_order_chk(level*);
+map_entry array_map_entry_at(char* data, int idx);
 
 
 run_t *array_pipe_p_merger_cutter(skiplist *skip, pl_run *u_data, pl_run* l_data, uint32_t u_num, uint32_t l_num,level *t, void *(*lev_insert_write)(level *,run_t *data));

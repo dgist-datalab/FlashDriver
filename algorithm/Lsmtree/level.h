@@ -23,7 +23,7 @@ typedef enum{
 	for(run=func(iter);run!=NULL;run=func(iter))
 
 typedef struct skiplist skiplist;
-
+/*
 typedef union data_info{
 	ppa_t ppa;
 	uint32_t v_len;
@@ -35,7 +35,7 @@ typedef struct map_entry{
 	data_info info;
 	char *data;
 }map_entry;
-
+*/
 typedef struct htable{
 	//keyset *sets;
 	char *sets;
@@ -132,7 +132,7 @@ typedef struct level_ops{
 	void (*move_heap)( level* des,  level *src);
 	bool (*chk_overlap)( level *des, KEYT star, KEYT end);
 	int32_t (*chk_overlap_run) (level *des, level *src, KEYT start, KEYT end);
-	bool (*level_order_chk) (level *);
+	map_entry (*map_entry_at)(char* data, int idx);
 	uint32_t (*range_find)( level *l,KEYT start, KEYT end,  run_t ***r, uint32_t max_num);
 	uint32_t (*range_find_compaction)( level *l,KEYT start, KEYT end,  run_t ***r);
 	uint32_t (*unmatch_find)( level *,KEYT start, KEYT end, run_t ***r);

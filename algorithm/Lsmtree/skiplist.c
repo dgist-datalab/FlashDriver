@@ -1175,3 +1175,57 @@ snode *skiplist_insert_data_existIgnore(skiplist *list, KEYT key, uint32_t data_
 	}
 	return x;
 }
+
+snode *skiplist_insert_map_entry(skiplist *list, KEYT key, map_entry map){
+	snode *update[MAX_L+1];
+	snode *x=list->header;
+	for(int i=list->level; i>=1; i--){
+#if defined(KVSSD) 
+		while(KEYCMP(x->list[i]->key,key)<0)
+#else
+		while(x->list[i]->key<key)
+#endif
+			x=x->list[i];
+		update[i]=x;
+	}
+	x=x->list[1];
+#if defined(KVSSD)
+	if(KEYTEST(key,x->key))
+#else
+	if(key==x->key)
+#endif
+	{
+		x->m_entry=map;
+#if defined(KVSSD)
+		free(key.key);
+#endif
+		return x;
+	}
+	else{
+		int level=getLevel();
+		if(level>list->level){
+			for(int i=list->level+1; i<=level; i++){
+				update[i]=list->header;
+			}
+			list->level=level;
+		}
+		x=(snode*)malloc(sizeof(snode));
+		x->list=(snode**)malloc(sizeof(snode*)*(level+1));
+
+		x->key=key;
+		x->m_entry=map;
+
+		for(int i=1; i<=level; i++){
+			x->list[i]=update[i]->list[i];
+			update[i]->list[i]=x;
+		}
+
+		//new back
+		x->back=x->list[1]->back;
+		x->list[1]->back=x;
+
+		x->level=level;
+		list->size++;
+	}
+	return x;
+}

@@ -1,6 +1,7 @@
 #ifndef __SKIPLIST_HEADER
 #define __SKIPLIST_HEADER
 #include <stdint.h>
+#include "level.h"
 #include "../../include/container.h"
 #include "../../include/settings.h"
 #include "../../include/lsm_settings.h"
@@ -55,6 +56,7 @@ typedef struct snode{ //skiplist's node
 	uint32_t time;
 	s_value value;
 	bool isvalid;
+	map_entry m_entry;
 
 #ifdef HASH_KVSSD
 	uint32_t lpa;
@@ -167,6 +169,7 @@ void skiplist_container_free(skiplist *list);
 sk_iter* skiplist_get_iterator(skiplist *list); //get read only iterator
 snode *skiplist_get_next(sk_iter* iter); //get next snode by iterator
 skiplist *skiplist_divide(skiplist *in, snode *target);//target is included in result
+snode *skiplist_insert_map_entry(skiplist *list, KEYT, map_entry);
 
 int getLevel();
 #ifdef DVALUE

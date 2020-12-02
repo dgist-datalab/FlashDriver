@@ -732,41 +732,45 @@ uint8_t lsm_find_run(KEYT key, run_t ** entry, run_t *up_entry, map_entry *found
 			key_interpreter(key, buf3);
 */
 #if (defined(COMPRESSEDCACHE)&&COMPRESSEDCACHE==DELTACOMP)
-			ppa_t compressed_result=lsm_lru_find_cache(LSM.llru, &entries[0], key);
-			if(compressed_result!=UINT32_MAX){
-				found->type=INVALIDENT;
-//				(*found)=NULL;
-				(*found_ppa)=compressed_result;
-				rwlock_read_unlock(level_rw_lock);
-				if(level)*level=i;
-				return CACHING;
-			}
-			else if(entries[0].lru_cache_node){
-				char buf[100];
-				key_interpreter(key, buf);
-//				printf("key %s\n", buf);
-//				printf("cant be!!!\n");
-//				abort();
-			}
-#else
-			char *cache_data=lsm_lru_pick(LSM.llru, &entries[0], LSM.decompressed_buf);
-			if(cache_data){
-//				printf("%s~%s key:%s find!\n", buf, buf2, buf3);
-				LMI.lru_hit_cnt++;
-				map_entry find=LSM.lop->find_map_entry(cache_data, key);
-				lsm_lru_pick_release(LSM.llru, &entries[0]);
-				if(find.type!=INVALIDENT){
-					*found=find;
-					*found_ppa=UINT32_MAX;
-					if(level) *level=i;
+			if(key.key[0]=='d'){
+				ppa_t compressed_result=lsm_lru_find_cache(LSM.llru, &entries[0], key);
+				if(compressed_result!=UINT32_MAX){
+					found->type=INVALIDENT;
+					//				(*found)=NULL;
+					(*found_ppa)=compressed_result;
 					rwlock_read_unlock(level_rw_lock);
+					if(level)*level=i;
 					return CACHING;
 				}
-			}else{
-//				printf("%s~%s key:%s miss!\n", buf, buf2, buf3);
-				lsm_lru_pick_release(LSM.llru, &entries[0]);
+				else if(entries[0].lru_cache_node){
+					char buf[100];
+					key_interpreter(key, buf);
+					//				printf("key %s\n", buf);
+					//				printf("cant be!!!\n");
+					//				abort();
+				}
 			}
+			else
 #endif
+			{
+				char *cache_data=lsm_lru_pick(LSM.llru, &entries[0], LSM.decompressed_buf);
+				if(cache_data){
+					//				printf("%s~%s key:%s find!\n", buf, buf2, buf3);
+					LMI.lru_hit_cnt++;
+					map_entry find=LSM.lop->find_map_entry(cache_data, key);
+					lsm_lru_pick_release(LSM.llru, &entries[0]);
+					if(find.type!=INVALIDENT){
+						*found=find;
+						*found_ppa=UINT32_MAX;
+						if(level) *level=i;
+						rwlock_read_unlock(level_rw_lock);
+						return CACHING;
+					}
+				}else{
+					//				printf("%s~%s key:%s miss!\n", buf, buf2, buf3);
+					lsm_lru_pick_release(LSM.llru, &entries[0]);
+				}
+			}
 
 			if(level) *level=i;
 			if(run) *run=0;
@@ -806,7 +810,12 @@ int __lsm_get_sub(request *req,run_t *entry, char *table,skiplist *list, int idx
 		target_node=skiplist_find(list,req->key);
 		if(!target_node) return 0;
 		if(target_node->value.u_value){
-			memcpy(req->value->value, target_node->value.u_value->value, target_node->value.u_value->length*PIECE);
+			if(req->key.key[0]=='d'){
+				memcpy(req->value->value, target_node->value.u_value->value, target_node->value.u_value->length*PIECE);
+			}
+			else{
+				memcpy(req->value->value, target_node->value.u_value->value, target_node->value.u_value->length);
+			}
 			req->end_req(req);
 			return 2;
 		}

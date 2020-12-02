@@ -8,9 +8,8 @@
 #include "transaction_table.h"
 
 typedef struct key_addr_pair{
-	KEYT key;
-	ppa_t ppa;
 	char *data;
+	map_entry ment;
 }ka_pair;
 
 typedef struct meta_iterator{

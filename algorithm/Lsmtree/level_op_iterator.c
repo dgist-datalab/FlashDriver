@@ -18,15 +18,17 @@ meta_iterator *meta_iter_init(char *data, KEYT key, bool include, bool iscached)
 	res->sk_node=NULL;
 
 	/*binary search*/
-	uint16_t *bitmap=(uint16_t*)data;
+	//uint16_t *bitmap=(uint16_t*)data;
 	uint16_t s=1, e=res->max_idx, mid=0;
 	int t_res=0;
+	map_entry mtemp;
 	KEYT temp;
 	while(s<=e){
 		mid=(s+e)/2;
-		temp.key=&data[bitmap[mid]+sizeof(ppa_t)];
-		temp.len=bitmap[mid+1]-bitmap[mid]-sizeof(ppa_t);
-		
+
+		mtemp=LSM.lop->map_entry_at(data, mid);
+		temp=mtemp.key;
+
 		t_res=KEYCMP(temp, key);
 		if(res==0){
 			res->idx=include?mid:mid+1;
@@ -87,26 +89,30 @@ bool meta_iter_pick_key_addr_pair(meta_iterator *mi, ka_pair *ka){
 			mi->idx++;
 			return false;
 		}
-		ka->key=mi->sk_node->key;
+		ka->ment.key=mi->sk_node->key;
 		if(mi->sk_node->value.u_value){
-			ka->data=mi->sk_node->value.u_value->value;
-			ka->ppa=UINT32_MAX;
+			ka->ment.type=KVUNSEP;
+			ka->ment.data=mi->sk_node->value.u_value->value;
+			ka->ment.info.v_len=mi->sk_node->value.u_value->length;
 		}
 		else{
-			ka->ppa=mi->sk_node->ppa;
+			ka->ment.type=KVSEP;
+			ka->ment.info.ppa=mi->sk_node->ppa;
 		}
-		if(!KEYFILTER(ka->key, mi->m_prefix.key, mi->m_prefix.len)){
+		if(!KEYFILTER(ka->ment.key, mi->m_prefix.key, mi->m_prefix.len)){
 			mi->idx++;
 			return false;	
 		}
 	}
 	else{
+		/*
 		ka->ppa=*(ppa_t*)&mi->data[mi->len_map[mi->idx]];
 		ka->key.key=&mi->data[mi->len_map[mi->idx]+sizeof(ppa_t)];
-		ka->key.len=mi->len_map[mi->idx+1]-mi->len_map[mi->idx]-sizeof(ppa_t);
+		ka->key.len=mi->len_map[mi->idx+1]-mi->len_map[mi->idx]-sizeof(ppa_t);*/
 
-		if(!KEYFILTER(ka->key, mi->m_prefix.key, mi->m_prefix.len)){
-			print_key(ka->key, true);
+		ka->ment=LSM.lop->map_entry_at(mi->data, mi->idx);
+		if(!KEYFILTER(ka->ment.key, mi->m_prefix.key, mi->m_prefix.len)){
+			print_key(ka->ment.key, true);
 			return false;
 		}
 	}

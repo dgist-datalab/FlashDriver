@@ -280,7 +280,7 @@ uint32_t partial_leveling(level* t,level *origin,leveling_node *lnode, level* up
 			else{
 				src_num=LSM.lop->range_find_compaction(upper,key_min,end,&data);	
 			}
-			des_num=LSM.lop->range_find_compaction(origin,key_min,key_max,&target_s);//for stream compaction
+			des_num=LSM.lop->range_find_compaction(origin,start,key_max,&target_s);//for stream compaction
 			if(src_num && des_num == 0 ){
 				if(des_num==0){
 					LSM.lop->print(origin);
@@ -296,15 +296,15 @@ uint32_t partial_leveling(level* t,level *origin,leveling_node *lnode, level* up
 			data[0]=lnode->entry;
 			data[1]=NULL;
 			start=lnode->entry->key;
-			des_num=LSM.lop->range_find_compaction(origin,key_min,key_max,&target_s);//for stream compaction
+			des_num=LSM.lop->range_find_compaction(origin,start,key_max,&target_s);//for stream compaction
 		}
-	/*
+
 		run_t *r;
 		lev_iter *iter=LSM.lop->get_iter(origin,key_min,start);
 		for_each_lev(r,iter, LSM.lop->iter_nxt){
 			LSM.lop->insert(t,r);	
 		}
-*/
+
 		for(int i=0; target_s[i]!=NULL; i++){
 			run_t *temp=target_s[i];
 			if(temp->iscompactioning==SEQCOMP){

@@ -7,7 +7,9 @@
 #include "level.h"
 
 #ifdef COMPRESSEDCACHE
+enum{NONCOMPRESSED, COMPRESSED};
 typedef struct compressed_cache_node{
+	char type;
 	uint16_t len;
 	char buf[PAGESIZE];
 }compressed_cache_node;

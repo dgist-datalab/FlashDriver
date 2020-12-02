@@ -98,13 +98,21 @@ void lsm_lru_insert(lsm_lru *llru, run_t *ent, char *data, int level_idx){
 #ifdef COMPRESSEDCACHE
 	target->entry=ent;
 	target->data=(compressed_cache_node*)malloc(sizeof(compressed_cache_node));
-	#if COMPRESSEDCACHE==LZ4
-	target->data->len=LZ4_compress_default(data, target->data->buf, PAGESIZE, PAGESIZE);
-	#elif COMPRESSEDCACHE==DELTACOMP
-	target->data->len=delta_compression_comp(data, target->data->buf);
-	#endif
-	llru->now_bytes+=target->data->len;
+	if(ent->key.key[0]=='d' && ent->end.key[0]=='d'){
+		target->data->type=COMPRESSED;
+#if COMPRESSEDCACHE==LZ4
+		target->data->len=LZ4_compress_default(data, target->data->buf, PAGESIZE, PAGESIZE);
+#elif COMPRESSEDCACHE==DELTACOMP
+		target->data->len=delta_compression_comp(data, target->data->buf);
+#endif
+	}
+	else{
+		target->data->type=NONCOMPRESSED;
+		memcpy(target->data->buf, data, PAGESIZE);
+		target->data->len=PAGESIZE;
+	}
 
+	llru->now_bytes+=target->data->len;
 	llru->input_length+=PAGESIZE;
 	llru->compressed_length+=target->data->len;
 #else
@@ -127,12 +135,21 @@ char* lsm_lru_get(lsm_lru *llru, run_t *ent, char *buf){
 	if(ent->lru_cache_node){
 		lsm_lru_node *target=(lsm_lru_node*)((lru_node*)ent->lru_cache_node)->data;
 #ifdef COMPRESSEDCACHE
-	#if COMPRESSEDCACHE==LZ4
-		LZ4_decompress_safe(target->data->buf, buf, target->data->len, PAGESIZE);
-	#elif COMPRESSEDCACHE==DELTACOMP
-		delta_compression_decomp(target->data->buf, buf, target->data->len);
-	#endif
-		res=buf;
+		if(target->data->type==COMPRESSED){
+#if COMPRESSEDCACHE==LZ4
+			LZ4_decompress_safe(target->data->buf, buf, target->data->len, PAGESIZE);
+#elif COMPRESSEDCACHE==DELTACOMP
+			delta_compression_decomp(target->data->buf, buf, target->data->len);
+#endif
+			res=buf;
+		}
+		else if(target->data->type==NONCOMPRESSED){
+			res=target->data->buf;		
+		}
+		else{
+			printf("invalid type!!!\n");
+			abort();
+		}
 #else
 		res=target->data;
 #endif
@@ -153,12 +170,21 @@ char *lsm_lru_pick(lsm_lru *llru, struct run *ent, char *buf){
 	if(ent->lru_cache_node){
 		lsm_lru_node *target=(lsm_lru_node*)((lru_node*)ent->lru_cache_node)->data;
 #ifdef COMPRESSEDCACHE
+		if(target->data->type==COMPRESSED){
 	#if COMPRESSEDCACHE==LZ4
-		LZ4_decompress_safe(target->data->buf, buf, target->data->len, PAGESIZE);
+			LZ4_decompress_safe(target->data->buf, buf, target->data->len, PAGESIZE);
 	#elif COMPRESSEDCACHE==DELTACOMP
-		delta_compression_decomp(target->data->buf, buf, target->data->len);
+			delta_compression_decomp(target->data->buf, buf, target->data->len);
 	#endif
-		res=buf;
+			res=buf;
+		}
+		else if(target->data->type==NONCOMPRESSED){
+			res=target->data->buf;
+		}
+		else{
+				printf("invalid type!!!\n");
+			abort();		
+		}
 #else
 		res=target->data;
 #endif

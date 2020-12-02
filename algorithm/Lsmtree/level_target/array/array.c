@@ -29,7 +29,7 @@ level_ops a_ops={
 	.move_heap=def_move_heap,
 	.chk_overlap=array_chk_overlap,
 	.chk_overlap_run=array_chk_overlap_run,
-	.level_order_chk=array_level_order_chk,
+	.map_entry_at=array_map_entry_at,
 	.range_find=array_range_find,
 	.range_find_compaction=array_range_find_compaction,
 	.unmatch_find=array_unmatch_find,
@@ -960,6 +960,6 @@ void array_lev_copy(level *des, level *src){
 	}
 }
 
-bool array_level_order_chk(level* lev){
-	return false;
+map_entry array_map_entry_at(char* data, int idx){
+	return __extract_p_entry(idx, data, (uint16_t*)data);
 }
